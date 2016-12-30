@@ -50,6 +50,17 @@ func (t *Trainer) MaxFitness() float64 {
 	return m
 }
 
+// BestEntity returns the entity with maximum fitness.
+func (t *Trainer) BestEntity() *Entity {
+	res := t.Population[0]
+	for _, e := range t.Population[1:] {
+		if e.Fitness > res.Fitness {
+			res = e
+		}
+	}
+	return res
+}
+
 // Evolve performs evolution and calls f before each
 // generation.
 // If f returns false, or if the user sends a kill signal,
