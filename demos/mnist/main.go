@@ -28,6 +28,10 @@ func main() {
 			Init:      1e-2,
 			DecayRate: 0.999,
 		},
+		CrossOverSchedule: &leea.ExpSchedule{
+			Init:      0.5,
+			DecayRate: 0.999,
+		},
 		Inheritance:   0.9,
 		SurvivalRatio: 0.5,
 	}
@@ -46,9 +50,12 @@ func main() {
 	}
 
 	log.Println("Training...")
+	fitScale := 1.0
 	trainer.Evolve(func() bool {
 		log.Printf("generation %d: max_fit=%f", trainer.Generation,
-			trainer.MaxFitness())
+			trainer.MaxFitness()/fitScale)
+		fitScale *= trainer.Inheritance
+		fitScale += 1
 		return true
 	})
 

@@ -23,6 +23,11 @@ type Trainer struct {
 	// given generation.
 	MutationSchedule Schedule
 
+	// CrossOverSchedule determines the fraction of an
+	// individuals parameters that should be updated via
+	// cross-over.
+	CrossOverSchedule Schedule
+
 	// Inheritance is a number between 0 and 1 that indicates
 	// how much of a parent's fitness is passed down to a
 	// child.
@@ -102,10 +107,11 @@ func (t *Trainer) generation() error {
 	}
 
 	ordering := rand.Perm(len(t.Population))
+	crossOver := t.CrossOverSchedule.ValueAtTime(t.Generation)
 	for i, j := range ordering[:len(ordering)-1] {
 		remainingIdxs := ordering[i+1:]
 		otherIdx := remainingIdxs[rand.Intn(len(remainingIdxs))]
-		t.Population[j].CrossOver(t.Population[otherIdx], 0.5)
+		t.Population[j].CrossOver(t.Population[otherIdx], crossOver)
 	}
 
 	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
