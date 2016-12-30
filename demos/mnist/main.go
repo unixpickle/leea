@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	PopSize   = 100
+	PopSize   = 200
 	BatchSize = 50
 )
 
@@ -33,7 +33,7 @@ func main() {
 			DecayRate: 0.999,
 		},
 		Inheritance:   0.9,
-		SurvivalRatio: 0.5,
+		SurvivalRatio: 0.9,
 	}
 
 	log.Println("Creating population...")
