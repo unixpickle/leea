@@ -41,11 +41,8 @@ type RouletteWheel struct {
 
 // SetEntities sets the entities for selection.
 func (r *RouletteWheel) SetEntities(e []*Entity) {
-	r.total = 0
-	for _, e := range e {
-		r.total += r.tempAdjust(e.Fitness)
-	}
 	r.entities = append([]*Entity{}, e...)
+	r.recomputeTotal()
 }
 
 // Select selects an entity and removes it from the pool.
@@ -54,7 +51,14 @@ func (r *RouletteWheel) Select() *Entity {
 	for i, e := range r.entities {
 		num -= r.tempAdjust(e.Fitness)
 		if i == len(r.entities)-1 || num < 0 {
+			oldTotal := r.total
 			r.total -= r.tempAdjust(e.Fitness)
+
+			// Recompute if too much numerical precision was lost.
+			if math.Abs(r.total/oldTotal) < 1e-3 {
+				r.recomputeTotal()
+			}
+
 			r.entities[i] = r.entities[len(r.entities)-1]
 			r.entities = r.entities[:len(r.entities)-1]
 			return e
@@ -68,6 +72,13 @@ func (r *RouletteWheel) tempAdjust(x float64) float64 {
 		return x
 	}
 	return math.Pow(x, 1/r.Temperature)
+}
+
+func (r *RouletteWheel) recomputeTotal() {
+	r.total = 0
+	for _, e := range r.entities {
+		r.total += r.tempAdjust(e.Fitness)
+	}
 }
 
 // A SortSelector selects entities in order of their
