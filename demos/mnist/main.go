@@ -31,13 +31,13 @@ func main() {
 			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
 			BatchSize: BatchSize,
 		},
-		Selector: &leea.SortSelector{},
+		Selector: &leea.RouletteWheel{Temperature: 0.05},
 		MutationSchedule: &leea.ExpSchedule{
 			Init:      1e-2,
 			DecayRate: 0.999,
 		},
 		CrossOverSchedule: &leea.ExpSchedule{
-			Init:      0,
+			Init:      0.01,
 			DecayRate: 0.999,
 		},
 		Inheritance:   0.99,

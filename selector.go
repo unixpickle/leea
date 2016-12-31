@@ -1,6 +1,7 @@
 package leea
 
 import (
+	"math"
 	"math/rand"
 	"sort"
 )
@@ -23,6 +24,17 @@ type Selector interface {
 // A RouletteWheel selects entities by randomly choosing
 // them with probability proportional to their fitnesses.
 type RouletteWheel struct {
+	// Temperature controls how biased selections should be
+	// towards more fit individuals.
+	// If it is high (e.g. 10), then the fitnesses will
+	// mostly be ignored.
+	// If it is low (e.g. 0.1), then the fitnesses will
+	// greatly influence selections.
+	//
+	// A Temperature of 0 is treated as 1, which uses the
+	// exact fitnesses.
+	Temperature float64
+
 	entities []*Entity
 	total    float64
 }
@@ -31,7 +43,7 @@ type RouletteWheel struct {
 func (r *RouletteWheel) SetEntities(e []*Entity) {
 	r.total = 0
 	for _, e := range e {
-		r.total += e.Fitness
+		r.total += r.tempAdjust(e.Fitness)
 	}
 	r.entities = append([]*Entity{}, e...)
 }
@@ -40,15 +52,22 @@ func (r *RouletteWheel) SetEntities(e []*Entity) {
 func (r *RouletteWheel) Select() *Entity {
 	num := rand.Float64() * r.total
 	for i, e := range r.entities {
-		num -= e.Fitness
+		num -= r.tempAdjust(e.Fitness)
 		if i == len(r.entities)-1 || num < 0 {
-			r.total -= e.Fitness
+			r.total -= r.tempAdjust(e.Fitness)
 			r.entities[i] = r.entities[len(r.entities)-1]
 			r.entities = r.entities[:len(r.entities)-1]
 			return e
 		}
 	}
 	panic("no entities to select")
+}
+
+func (r *RouletteWheel) tempAdjust(x float64) float64 {
+	if r.Temperature == 0 || r.Temperature == 1 {
+		return x
+	}
+	return math.Pow(x, 1/r.Temperature)
 }
 
 // A SortSelector selects entities in order of their
