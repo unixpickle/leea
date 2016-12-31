@@ -18,6 +18,7 @@ type Trainer struct {
 	Evaluator  Evaluator
 	Samples    SampleSource
 	Population []*Entity
+	Selector   Selector
 
 	// MutationSchedule determines the mutation stddev for a
 	// given generation.
@@ -111,7 +112,7 @@ func (t *Trainer) generation() error {
 	for i, j := range ordering[:len(ordering)-1] {
 		remainingIdxs := ordering[i+1:]
 		otherIdx := remainingIdxs[rand.Intn(len(remainingIdxs))]
-		t.Population[j].CrossOver(t.Population[otherIdx], crossOver)
+		t.Population[j].CrossOver(t.Population[otherIdx], 1-crossOver)
 	}
 
 	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
@@ -124,9 +125,9 @@ func (t *Trainer) generation() error {
 }
 
 func (t *Trainer) reorderEntities() {
-	w := newRouletteWheel(t.Population)
+	t.Selector.SetEntities(t.Population)
 	for i := range t.Population {
-		t.Population[i] = w.Select()
+		t.Population[i] = t.Selector.Select()
 	}
 }
 
@@ -139,34 +140,4 @@ func (t *Trainer) survivorCount() int {
 		return 1
 	}
 	return numSelect
-}
-
-type rouletteWheel struct {
-	Entities []*Entity
-	Total    float64
-}
-
-func newRouletteWheel(entities []*Entity) *rouletteWheel {
-	var total float64
-	for _, e := range entities {
-		total += e.Fitness
-	}
-	return &rouletteWheel{
-		Entities: append([]*Entity{}, entities...),
-		Total:    total,
-	}
-}
-
-func (r *rouletteWheel) Select() *Entity {
-	num := rand.Float64() * r.Total
-	for i, e := range r.Entities {
-		num -= e.Fitness
-		if i == len(r.Entities)-1 || num < 0 {
-			r.Total -= e.Fitness
-			r.Entities[i] = r.Entities[len(r.Entities)-1]
-			r.Entities = r.Entities[:len(r.Entities)-1]
-			return e
-		}
-	}
-	panic("no entities to select")
 }
