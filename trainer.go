@@ -20,6 +20,10 @@ type Trainer struct {
 	Population []*Entity
 	Selector   Selector
 
+	// Crosser is used to perform genetic cross-over.
+	// If this is nil, BasicCrosser is used.
+	Crosser Crosser
+
 	// MutationSchedule determines the mutation stddev for a
 	// given generation.
 	MutationSchedule Schedule
@@ -104,7 +108,7 @@ func (t *Trainer) generation() error {
 
 	// Over-write the dead population with the survivors.
 	for i := n; i < len(t.Population); i++ {
-		t.Population[i].CrossOver(t.Population[rand.Intn(n)], 0)
+		t.Population[i].Set(t.Population[rand.Intn(n)])
 	}
 
 	ordering := rand.Perm(len(t.Population))
@@ -112,7 +116,11 @@ func (t *Trainer) generation() error {
 	for i, j := range ordering[:len(ordering)-1] {
 		remainingIdxs := ordering[i+1:]
 		otherIdx := remainingIdxs[rand.Intn(len(remainingIdxs))]
-		t.Population[j].CrossOver(t.Population[otherIdx], 1-crossOver)
+		keepRatio := 1 - crossOver
+		e := t.Population[j]
+		e1 := t.Population[otherIdx]
+		e.Fitness = keepRatio*e.Fitness + (1-keepRatio)*e1.Fitness
+		t.crosser().Cross(e.Learner, e1.Learner, keepRatio)
 	}
 
 	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
@@ -140,4 +148,11 @@ func (t *Trainer) survivorCount() int {
 		return 1
 	}
 	return numSelect
+}
+
+func (t *Trainer) crosser() Crosser {
+	if t.Crosser != nil {
+		return t.Crosser
+	}
+	return BasicCrosser{}
 }

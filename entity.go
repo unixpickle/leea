@@ -22,24 +22,8 @@ func (e *Entity) Mutate(d float64) {
 	}
 }
 
-// CrossOver updates the parameters in e by borrowing some
-// parameters from e1.
-// The keepRatio determines how many of e's parameters are
-// retained rather than being taken from e1.
-// For instance, if keepRatio is 0, then e is set entirely
-// to e1.
-//
-// The fitness of e is updated to reflect the fitnesses of
-// both e and e1.
-func (e *Entity) CrossOver(e1 *Entity, keepRatio float64) {
-	e.Fitness = e.Fitness*keepRatio + e1.Fitness*(1-keepRatio)
-	e1p := e1.Learner.Parameters()
-	for i, p := range e.Learner.Parameters() {
-		p1 := e1p[i]
-		for j, comp := range p1.Vector {
-			if rand.Float64() > keepRatio {
-				p.Vector[j] = comp
-			}
-		}
-	}
+// Set copies the contents of e1 into e.
+func (e *Entity) Set(e1 *Entity) {
+	e.Fitness = e1.Fitness
+	BasicCrosser{}.Cross(e.Learner, e1.Learner, 0)
 }
