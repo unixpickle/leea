@@ -4,6 +4,7 @@ import (
 	"math/rand"
 
 	"github.com/unixpickle/sgd"
+	"github.com/unixpickle/weakai/neuralnet"
 )
 
 // A Crosser performs cross-over between learners.
@@ -29,4 +30,45 @@ func (_ BasicCrosser) Cross(dest, source sgd.Learner, keep float64) {
 			}
 		}
 	}
+}
+
+func basicCrosserIfNil(c Crosser) Crosser {
+	if c == nil {
+		return BasicCrosser{}
+	}
+	return c
+}
+
+// A NeuronalCrosser performs cross-over on entire neurons
+// at a time in a neuralnet.DenseLayer, using the Default
+// Crosser when it does not recognize the type of a
+// learner.
+//
+// Specifically, a NeuronalCrosser knows how to deal with
+// a *neuralnet.DenseLayer and a neuralnet.Network.
+type NeuronalCrosser struct {
+	// Fallback is the Crosser to use if a learner is not a
+	// *neuralnet.DenseLayer or neuralnet.Network.
+	// If it is nil, BasicCrosser is used.
+	Fallback Crosser
+}
+
+func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
+	switch dest := dest.(type) {
+	case neuralnet.Network:
+		source := source.(neuralnet.Network)
+		for i, layer := range dest {
+			if l, ok := layer.(sgd.Learner); ok {
+				sourceLayer := source[i].(sgd.Learner)
+				n.Cross(l, sourceLayer, keep)
+			}
+		}
+	case *neuralnet.DenseLayer:
+	default:
+		n.fallback().Cross(dest, source, keep)
+	}
+}
+
+func (n *NeuronalCrosser) fallback() Crosser {
+	return basicCrosserIfNil(n.Fallback)
 }

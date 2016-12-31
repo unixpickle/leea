@@ -151,8 +151,5 @@ func (t *Trainer) survivorCount() int {
 }
 
 func (t *Trainer) crosser() Crosser {
-	if t.Crosser != nil {
-		return t.Crosser
-	}
-	return BasicCrosser{}
+	return basicCrosserIfNil(t.Crosser)
 }
