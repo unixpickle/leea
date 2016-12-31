@@ -31,7 +31,7 @@ func main() {
 			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
 			BatchSize: BatchSize,
 		},
-		Selector: &leea.RouletteWheel{Temperature: 0.05},
+		Selector: &leea.SortSelector{},
 		MutationSchedule: &leea.ExpSchedule{
 			Init:      1e-2,
 			DecayRate: 0.999,

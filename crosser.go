@@ -64,6 +64,18 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 			}
 		}
 	case *neuralnet.DenseLayer:
+		source := source.(*neuralnet.DenseLayer)
+		neuronCount := dest.Weights.Rows
+		inputCount := dest.Weights.Cols
+		for i := 0; i < neuronCount; i++ {
+			if rand.Float64() < keep {
+				startIdx := i * inputCount
+				endIdx := (i + 1) * inputCount
+				copy(dest.Weights.Data.Vector[startIdx:endIdx],
+					source.Weights.Data.Vector[startIdx:endIdx])
+				dest.Biases.Var.Vector[i] = source.Biases.Var.Vector[i]
+			}
+		}
 	default:
 		n.fallback().Cross(dest, source, keep)
 	}
