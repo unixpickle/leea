@@ -31,18 +31,18 @@ func main() {
 	var batchSize int
 	var outFile string
 
-	flag.Float64Var(&mutInit, "mut", 1e-2, "mutation rate")
-	flag.Float64Var(&mutDecay, "mutdecay", 0.999, "mutation decay rate")
+	flag.Float64Var(&mutInit, "mut", 5e-3, "mutation rate")
+	flag.Float64Var(&mutDecay, "mutdecay", 1, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
 
-	flag.Float64Var(&crossInit, "cross", 1e-2, "cross-over rate")
+	flag.Float64Var(&crossInit, "cross", 0.5, "cross-over rate")
 	flag.Float64Var(&crossDecay, "crossdecay", 0.999, "cross-over decay rate")
 	flag.Float64Var(&crossBaseline, "crossbias", 0, "cross-over bias")
 
-	flag.Float64Var(&inheritance, "inherit", 0.99, "inheritance rate")
+	flag.Float64Var(&inheritance, "inherit", 0.95, "inheritance rate")
 	flag.Float64Var(&survivalRatio, "survival", 0.2, "survival ratio")
 
-	flag.IntVar(&population, "population", 256, "population size")
+	flag.IntVar(&population, "population", 512, "population size")
 	flag.IntVar(&batchSize, "batch", 64, "samples per epoch")
 
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
@@ -57,6 +57,7 @@ func main() {
 			BatchSize: batchSize,
 		},
 		Selector: &leea.SortSelector{},
+		Crosser:  &leea.NeuronalCrosser{},
 		MutationSchedule: &leea.ExpSchedule{
 			Init:      mutInit,
 			DecayRate: mutDecay,
