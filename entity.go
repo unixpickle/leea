@@ -14,10 +14,11 @@ type Entity struct {
 
 // Mutate applies normally-distributed noise to the
 // parameters with standard deviation d.
-func (e *Entity) Mutate(d float64) {
+func (e *Entity) Mutate(s rand.Source, d float64) {
+	r := rand.New(s)
 	for _, p := range e.Learner.Parameters() {
 		for i, comp := range p.Vector {
-			p.Vector[i] = comp + rand.NormFloat64()*d
+			p.Vector[i] = comp + r.NormFloat64()*d
 		}
 	}
 }

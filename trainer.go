@@ -6,6 +6,8 @@ import (
 	"errors"
 	"math"
 	"math/rand"
+	"runtime"
+	"sync"
 )
 
 const (
@@ -123,13 +125,35 @@ func (t *Trainer) generation() error {
 		t.crosser().Cross(e.Learner, e1.Learner, keepRatio)
 	}
 
-	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
-	for _, e := range t.Population {
-		e.Mutate(mutation)
-	}
-
+	t.mutateAll()
 	t.Generation++
+
 	return nil
+}
+
+func (t *Trainer) mutateAll() {
+	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
+
+	entities := make(chan *Entity, len(t.Population))
+	for _, x := range t.Population {
+		entities <- x
+	}
+	close(entities)
+
+	// Mutation benefits from parallelism because normal
+	// sampling is expensive.
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.GOMAXPROCS(0); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			gen := rand.NewSource(rand.Int63())
+			for e := range entities {
+				e.Mutate(gen, mutation)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func (t *Trainer) reorderEntities() {
