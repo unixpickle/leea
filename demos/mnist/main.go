@@ -58,15 +58,17 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		MutationSchedule: &leea.ExpSchedule{
-			Init:      1e-2,
-			DecayRate: 0.999,
+			Init:      mutInit,
+			DecayRate: mutDecay,
+			Baseline:  mutBaseline,
 		},
 		CrossOverSchedule: &leea.ExpSchedule{
-			Init:      0.01,
-			DecayRate: 0.999,
+			Init:      crossInit,
+			DecayRate: crossDecay,
+			Baseline:  crossBaseline,
 		},
-		Inheritance:   0.99,
-		SurvivalRatio: 0.2,
+		Inheritance:   inheritance,
+		SurvivalRatio: survivalRatio,
 	}
 
 	netData, err := ioutil.ReadFile(outFile)
