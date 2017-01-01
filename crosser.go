@@ -3,8 +3,10 @@ package leea
 import (
 	"math/rand"
 
+	"github.com/unixpickle/autofunc"
 	"github.com/unixpickle/sgd"
 	"github.com/unixpickle/weakai/neuralnet"
+	"github.com/unixpickle/weakai/rnn"
 )
 
 // A Crosser performs cross-over between learners.
@@ -45,7 +47,16 @@ func basicCrosserIfNil(c Crosser) Crosser {
 // learner.
 //
 // Specifically, a NeuronalCrosser knows how to deal with
-// a *neuralnet.DenseLayer and a neuralnet.Network.
+// the following types:
+//
+//     *neuralnet.DenseLayer
+//     neuralnet.Network
+//     rnn.StackedBlock
+//     *rnn.StateOutBlock
+//     *rnn.NetworkBlock
+//
+// For the above types, the crosser can unwrap the type
+// and apply cross-over to its constituent parts.
 type NeuronalCrosser struct {
 	// Fallback is the Crosser to use if a learner is not a
 	// *neuralnet.DenseLayer or neuralnet.Network.
@@ -53,6 +64,8 @@ type NeuronalCrosser struct {
 	Fallback Crosser
 }
 
+// Cross performs cross-over, taking neural structures
+// into account whenever possible.
 func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 	switch dest := dest.(type) {
 	case neuralnet.Network:
@@ -76,6 +89,24 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 				dest.Biases.Var.Vector[i] = source.Biases.Var.Vector[i]
 			}
 		}
+	case rnn.StackedBlock:
+		source := source.(rnn.StackedBlock)
+		for i, x := range dest {
+			if l, ok := x.(sgd.Learner); ok {
+				n.Cross(l, source[i].(sgd.Learner), keep)
+			}
+		}
+	case *rnn.StateOutBlock:
+		source := source.(*rnn.StateOutBlock).Block
+		if l, ok := dest.Block.(sgd.Learner); ok {
+			n.Cross(l, source.(sgd.Learner), keep)
+		}
+	case *rnn.NetworkBlock:
+		source := source.(*rnn.NetworkBlock)
+		l1 := &initStateLearner{Variable: dest.Parameters()[0]}
+		l2 := &initStateLearner{Variable: source.Parameters()[0]}
+		n.Cross(l1, l2, keep)
+		n.Cross(dest.Network(), source.Network(), keep)
 	default:
 		n.fallback().Cross(dest, source, keep)
 	}
@@ -83,4 +114,12 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 
 func (n *NeuronalCrosser) fallback() Crosser {
 	return basicCrosserIfNil(n.Fallback)
+}
+
+type initStateLearner struct {
+	Variable *autofunc.Variable
+}
+
+func (i *initStateLearner) Parameters() []*autofunc.Variable {
+	return []*autofunc.Variable{i.Variable}
 }
