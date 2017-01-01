@@ -9,14 +9,15 @@ type Schedule interface {
 }
 
 // ExpSchedule exponentially decays a parameter over time.
-// The parameter at time t is Init*DecayRate^t
+// The parameter at time t is Baseline + Init*DecayRate^t
 type ExpSchedule struct {
 	Init      float64
 	DecayRate float64
+	Baseline  float64
 }
 
 // ValueAtTime returns the value after t timesteps of
 // decay.
 func (e *ExpSchedule) ValueAtTime(t int) float64 {
-	return e.Init * math.Pow(e.DecayRate, float64(t))
+	return e.Baseline + e.Init*math.Pow(e.DecayRate, float64(t))
 }
