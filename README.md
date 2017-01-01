@@ -28,5 +28,14 @@ Here, I will put the best results as I get them:
       <td>1225</td>
       <td>81.59% success</td>
     </tr>
+    <tr>
+      <td>MNIST</td>
+      <td>1024</td>
+      <td>0.0005 + 0.05*0.995<sup>t</sup></td>
+      <td>0.45 + 0.45*0.995<sup>t</sup></td>
+      <td>64</td>
+      <td>250</td>
+      <td>78.54% success</td>
+    </tr>
   </tbody>
 </table>
