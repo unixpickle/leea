@@ -115,7 +115,11 @@ func (t *Trainer) generation() error {
 
 	ordering := rand.Perm(len(t.Population))
 	crossOver := t.CrossOverSchedule.ValueAtTime(t.Generation)
-	for i, j := range ordering[:len(ordering)-1] {
+	coCount := int(crossOver * float64(len(t.Population)))
+	if coCount == 0 {
+		coCount = 1
+	}
+	for i, j := range ordering[:coCount-1] {
 		remainingIdxs := ordering[i+1:]
 		otherIdx := remainingIdxs[rand.Intn(len(remainingIdxs))]
 		keepRatio := 1 - crossOver
@@ -125,18 +129,18 @@ func (t *Trainer) generation() error {
 		t.crosser().Cross(e.Learner, e1.Learner, keepRatio)
 	}
 
-	t.mutateAll()
+	t.mutateAt(ordering[coCount-1:])
 	t.Generation++
 
 	return nil
 }
 
-func (t *Trainer) mutateAll() {
+func (t *Trainer) mutateAt(indices []int) {
 	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
 
-	entities := make(chan *Entity, len(t.Population))
-	for _, x := range t.Population {
-		entities <- x
+	entities := make(chan *Entity, len(indices))
+	for _, i := range indices {
+		entities <- t.Population[i]
 	}
 	close(entities)
 
