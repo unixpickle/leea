@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	StateSize = 300
+	StateSize  = 300
+	EndSamples = 5
 )
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	flag.Float64Var(&inheritance, "inherit", 0.95, "inheritance rate")
 	flag.Float64Var(&survivalRatio, "survival", 0.2, "survival ratio")
 
-	flag.IntVar(&population, "population", 512, "population size")
+	flag.IntVar(&population, "population", 16, "population size")
 	flag.IntVar(&batchSize, "batch", 64, "samples per epoch")
 
 	flag.StringVar(&dataFile, "data", "", "text data file")
@@ -137,5 +138,10 @@ func main() {
 		if err := ioutil.WriteFile(outFile, netData, 0755); err != nil {
 			log.Println("Save failed:", err)
 		}
+	}
+
+	log.Println("Producing samples...")
+	for i := 0; i < EndSamples; i++ {
+		fmt.Println(GenerateSample(net))
 	}
 }
