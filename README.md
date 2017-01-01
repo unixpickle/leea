@@ -23,7 +23,7 @@ Here, I will put the best results as I get them:
       <td>MNIST</td>
       <td>512</td>
       <td>0.005</td>
-      <td>0.5 * 0.999<sup>t</sup></td>
+      <td>0.5 * 0.999<sup>time</sup></td>
       <td>64</td>
       <td>1225</td>
       <td>81.59% success</td>
@@ -31,8 +31,8 @@ Here, I will put the best results as I get them:
     <tr>
       <td>MNIST</td>
       <td>1024</td>
-      <td>0.0005 + 0.05*0.995<sup>t</sup></td>
-      <td>0.45 + 0.45*0.995<sup>t</sup></td>
+      <td>0.0005 + 0.05*0.995<sup>time</sup></td>
+      <td>0.05 + 0.45*0.995<sup>time</sup></td>
       <td>64</td>
       <td>250</td>
       <td>78.54% success</td>
