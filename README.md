@@ -15,6 +15,7 @@ Here, I will put the best results as I get them:
       <th>Cross-over</th>
       <th>Batch</th>
       <th># Generations</th>
+      <th>Result</th>
     </tr>
   </thead>
   <tbody>
@@ -25,6 +26,7 @@ Here, I will put the best results as I get them:
       <td>0.5 * 0.999<sup>t</sup></td>
       <td>64</td>
       <td>1225</td>
+      <td>81.59% success</td>
     </tr>
   </tbody>
 </table>
