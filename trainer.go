@@ -26,6 +26,11 @@ type Trainer struct {
 	// If this is nil, BasicCrosser is used.
 	Crosser Crosser
 
+	// DecaySchedule determines how much weight decay should
+	// be applied for a given generation.
+	// If this is nil, no weight decay is applied.
+	DecaySchedule Schedule
+
 	// MutationSchedule determines the mutation stddev for a
 	// given generation.
 	MutationSchedule Schedule
@@ -133,6 +138,10 @@ func (t *Trainer) generation() error {
 
 func (t *Trainer) mutateAll() {
 	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
+	decay := 0.0
+	if t.DecaySchedule != nil {
+		decay = t.DecaySchedule.ValueAtTime(t.Generation)
+	}
 
 	entities := make(chan *Entity, len(t.Population))
 	for _, x := range t.Population {
@@ -149,6 +158,9 @@ func (t *Trainer) mutateAll() {
 			defer wg.Done()
 			gen := rand.NewSource(rand.Int63())
 			for e := range entities {
+				if decay != 0 {
+					e.Decay(decay)
+				}
 				e.Mutate(gen, mutation)
 			}
 		}()

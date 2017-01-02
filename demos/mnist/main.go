@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -29,6 +30,7 @@ func main() {
 
 	var mutInit, mutDecay, mutBaseline float64
 	var crossInit, crossDecay, crossBaseline float64
+	var decayInit, decayDecay, decayBaseline float64
 	var inheritance float64
 	var survivalRatio float64
 	var population int
@@ -36,12 +38,16 @@ func main() {
 	var outFile string
 	var convolutional bool
 
-	flag.Float64Var(&mutInit, "mut", 5e-3, "mutation rate")
+	flag.Float64Var(&mutInit, "mut", 0.2, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 1, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
 
+	flag.Float64Var(&decayInit, "decay", 0.017, "weight decay rate")
+	flag.Float64Var(&decayDecay, "decaydecay", 1, "weight decay decay rate")
+	flag.Float64Var(&decayBaseline, "decaybias", 0, "weight decay bias")
+
 	flag.Float64Var(&crossInit, "cross", 0.5, "cross-over rate")
-	flag.Float64Var(&crossDecay, "crossdecay", 0.999, "cross-over decay rate")
+	flag.Float64Var(&crossDecay, "crossdecay", 1, "cross-over decay rate")
 	flag.Float64Var(&crossBaseline, "crossbias", 0, "cross-over bias")
 
 	flag.Float64Var(&inheritance, "inherit", 0.95, "inheritance rate")
@@ -64,6 +70,11 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		Crosser:  &leea.NeuronalCrosser{},
+		DecaySchedule: &leea.ExpSchedule{
+			Init:      decayInit,
+			DecayRate: decayDecay,
+			Baseline:  decayBaseline,
+		},
 		MutationSchedule: &leea.ExpSchedule{
 			Init:      mutInit,
 			DecayRate: mutDecay,
@@ -97,10 +108,17 @@ func main() {
 				net = createConvNet()
 			} else {
 				net = neuralnet.Network{
+					&neuralnet.RescaleLayer{Scale: 1 / math.Sqrt(28*28)},
 					neuralnet.NewDenseLayer(28*28, 300),
 					&neuralnet.HyperbolicTangent{},
+					&neuralnet.RescaleLayer{Scale: 1 / math.Sqrt(300)},
 					neuralnet.NewDenseLayer(300, 10),
 					&neuralnet.SoftmaxLayer{},
+				}
+				for _, l := range net {
+					if d, ok := l.(*neuralnet.DenseLayer); ok {
+						d.Weights.Data.Vector.Scale(math.Sqrt(float64(d.InputCount)))
+					}
 				}
 			}
 		}

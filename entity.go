@@ -12,6 +12,16 @@ type Entity struct {
 	Fitness float64
 }
 
+// Decay applies weight decay to the parameters with a
+// decay rate r.
+func (e *Entity) Decay(r float64) {
+	for _, p := range e.Learner.Parameters() {
+		for i, x := range p.Vector {
+			p.Vector[i] -= x * r
+		}
+	}
+}
+
 // Mutate applies normally-distributed noise to the
 // parameters with standard deviation d.
 func (e *Entity) Mutate(s rand.Source, d float64) {
