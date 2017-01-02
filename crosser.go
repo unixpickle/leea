@@ -54,6 +54,7 @@ func basicCrosserIfNil(c Crosser) Crosser {
 //     rnn.StackedBlock
 //     *rnn.StateOutBlock
 //     *rnn.NetworkBlock
+//     *neuralnet.ConvLayer
 //
 // For the above types, the crosser can unwrap the type
 // and apply cross-over to its constituent parts.
@@ -87,6 +88,14 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 				copy(dest.Weights.Data.Vector[startIdx:endIdx],
 					source.Weights.Data.Vector[startIdx:endIdx])
 				dest.Biases.Var.Vector[i] = source.Biases.Var.Vector[i]
+			}
+		}
+	case *neuralnet.ConvLayer:
+		source := source.(*neuralnet.ConvLayer)
+		for i, x := range dest.Filters {
+			if rand.Float64() < keep {
+				copy(x.Data, source.Filters[i].Data)
+				dest.Biases.Vector[i] = source.Biases.Vector[i]
 			}
 		}
 	case rnn.StackedBlock:

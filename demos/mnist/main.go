@@ -30,6 +30,7 @@ func main() {
 	var population int
 	var batchSize int
 	var outFile string
+	var convolutional bool
 
 	flag.Float64Var(&mutInit, "mut", 5e-3, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 1, "mutation decay rate")
@@ -46,6 +47,7 @@ func main() {
 	flag.IntVar(&batchSize, "batch", 64, "samples per epoch")
 
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
+	flag.BoolVar(&convolutional, "conv", false, "use convolutional network")
 
 	flag.Parse()
 
@@ -87,11 +89,15 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
-			net = neuralnet.Network{
-				neuralnet.NewDenseLayer(28*28, 300),
-				&neuralnet.HyperbolicTangent{},
-				neuralnet.NewDenseLayer(300, 10),
-				&neuralnet.SoftmaxLayer{},
+			if convolutional {
+				net = createConvNet()
+			} else {
+				net = neuralnet.Network{
+					neuralnet.NewDenseLayer(28*28, 300),
+					&neuralnet.HyperbolicTangent{},
+					neuralnet.NewDenseLayer(300, 10),
+					&neuralnet.SoftmaxLayer{},
+				}
 			}
 		}
 		trainer.Population = append(trainer.Population, &leea.Entity{
@@ -130,4 +136,57 @@ func main() {
 	log.Println("Total:", total)
 	hist := mnist.LoadTestingDataSet().CorrectnessHistogram(classif)
 	log.Println(hist)
+}
+
+func createConvNet() neuralnet.Network {
+	const (
+		HiddenSize     = 300
+		FilterSize     = 3
+		FilterCount    = 5
+		FilterStride   = 1
+		MaxPoolingSpan = 3
+	)
+
+	convOutWidth := (28-FilterSize)/FilterStride + 1
+	convOutHeight := (28-FilterSize)/FilterStride + 1
+
+	poolOutWidth := convOutWidth / MaxPoolingSpan
+	if convOutWidth%MaxPoolingSpan != 0 {
+		poolOutWidth++
+	}
+	poolOutHeight := convOutWidth / MaxPoolingSpan
+	if convOutHeight%MaxPoolingSpan != 0 {
+		poolOutHeight++
+	}
+	net := neuralnet.Network{
+		&neuralnet.ConvLayer{
+			FilterCount:  FilterCount,
+			FilterWidth:  FilterSize,
+			FilterHeight: FilterSize,
+			Stride:       FilterStride,
+			InputWidth:   28,
+			InputHeight:  28,
+			InputDepth:   1,
+		},
+		&neuralnet.Sigmoid{},
+		&neuralnet.MaxPoolingLayer{
+			XSpan:       MaxPoolingSpan,
+			YSpan:       MaxPoolingSpan,
+			InputWidth:  convOutWidth,
+			InputHeight: convOutHeight,
+			InputDepth:  FilterCount,
+		},
+		&neuralnet.DenseLayer{
+			InputCount:  poolOutWidth * poolOutHeight * FilterCount,
+			OutputCount: HiddenSize,
+		},
+		&neuralnet.Sigmoid{},
+		&neuralnet.DenseLayer{
+			InputCount:  HiddenSize,
+			OutputCount: 10,
+		},
+		&neuralnet.SoftmaxLayer{},
+	}
+	net.Randomize()
+	return net
 }
