@@ -7,6 +7,7 @@ import (
 	"github.com/unixpickle/sgd"
 	"github.com/unixpickle/weakai/neuralnet"
 	"github.com/unixpickle/weakai/rnn"
+	"github.com/unixpickle/weightnorm"
 )
 
 // A Crosser performs cross-over between learners.
@@ -55,6 +56,7 @@ func basicCrosserIfNil(c Crosser) Crosser {
 //     *rnn.StateOutBlock
 //     *rnn.NetworkBlock
 //     *neuralnet.ConvLayer
+//     *weightnorm.Norm
 //
 // For the above types, the crosser can unwrap the type
 // and apply cross-over to its constituent parts.
@@ -112,10 +114,33 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 		}
 	case *rnn.NetworkBlock:
 		source := source.(*rnn.NetworkBlock)
-		l1 := &initStateLearner{Variable: dest.Parameters()[0]}
-		l2 := &initStateLearner{Variable: source.Parameters()[0]}
+		l1 := &variableLearner{Variable: dest.Parameters()[0]}
+		l2 := &variableLearner{Variable: source.Parameters()[0]}
 		n.Cross(l1, l2, keep)
 		n.Cross(dest.Network(), source.Network(), keep)
+	case *weightnorm.Norm:
+		source := source.(*weightnorm.Norm)
+		for i, destWeights := range dest.Weights {
+			destMags := dest.Mags[i]
+			numRows := len(destMags.Vector)
+			numCols := len(destWeights.Vector) / len(destMags.Vector)
+			sourceWeights := source.Weights[i]
+			sourceMags := source.Mags[i]
+			for j := 0; j < numRows; j++ {
+				if rand.Float64() < keep {
+					s, e := j*numCols, (j+1)*numCols
+					copy(destWeights.Vector[s:e], sourceWeights.Vector[s:e])
+					destMags.Vector[j] = sourceMags.Vector[j]
+				}
+			}
+		}
+		skip := len(dest.Weights) + len(dest.Mags)
+		sp := source.Parameters()[skip:]
+		for i, x := range dest.Parameters()[skip:] {
+			l1 := &variableLearner{Variable: x}
+			l2 := &variableLearner{Variable: sp[i]}
+			n.Cross(l1, l2, keep)
+		}
 	default:
 		n.fallback().Cross(dest, source, keep)
 	}
@@ -125,10 +150,10 @@ func (n *NeuronalCrosser) fallback() Crosser {
 	return basicCrosserIfNil(n.Fallback)
 }
 
-type initStateLearner struct {
+type variableLearner struct {
 	Variable *autofunc.Variable
 }
 
-func (i *initStateLearner) Parameters() []*autofunc.Variable {
+func (i *variableLearner) Parameters() []*autofunc.Variable {
 	return []*autofunc.Variable{i.Variable}
 }
