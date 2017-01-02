@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/unixpickle/autofunc"
 	"github.com/unixpickle/leea"
@@ -23,6 +25,8 @@ func (_ Evaluator) Evaluate(e *leea.Entity, s sgd.SampleSet) float64 {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	var mutInit, mutDecay, mutBaseline float64
 	var crossInit, crossDecay, crossBaseline float64
 	var inheritance float64
