@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 
 	"github.com/unixpickle/autofunc"
@@ -60,6 +61,7 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		Crosser:  &leea.NeuronalCrosser{},
+		Mutator:  &leea.NormMutator{MagDrift: 0.01},
 		MutationSchedule: &leea.ExpSchedule{
 			Init:      mutInit,
 			DecayRate: mutDecay,
@@ -93,11 +95,15 @@ func main() {
 				net = createConvNet()
 			} else {
 				net = neuralnet.Network{
+					&neuralnet.RescaleLayer{Scale: 3 / math.Sqrt(28*28)},
 					neuralnet.NewDenseLayer(28*28, 300),
 					&neuralnet.HyperbolicTangent{},
+					&neuralnet.RescaleLayer{Scale: 3 / math.Sqrt(300)},
 					neuralnet.NewDenseLayer(300, 10),
 					&neuralnet.SoftmaxLayer{},
 				}
+				net[1].(*neuralnet.DenseLayer).Weights.Data.Vector.Scale(math.Sqrt(28 * 28))
+				net[4].(*neuralnet.DenseLayer).Weights.Data.Vector.Scale(math.Sqrt(300))
 			}
 		}
 		trainer.Population = append(trainer.Population, &leea.Entity{

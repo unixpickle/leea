@@ -22,6 +22,10 @@ type Trainer struct {
 	Population []*Entity
 	Selector   Selector
 
+	// Mutator is used to perform mutation.
+	// If this is nil, NormMutator is used.
+	Mutator Mutator
+
 	// Crosser is used to perform genetic cross-over.
 	// If this is nil, BasicCrosser is used.
 	Crosser Crosser
@@ -140,6 +144,11 @@ func (t *Trainer) mutateAll() {
 	}
 	close(entities)
 
+	m := t.Mutator
+	if m == nil {
+		m = &NormMutator{}
+	}
+
 	// Mutation benefits from parallelism because normal
 	// sampling is expensive.
 	var wg sync.WaitGroup
@@ -149,7 +158,7 @@ func (t *Trainer) mutateAll() {
 			defer wg.Done()
 			gen := rand.NewSource(rand.Int63())
 			for e := range entities {
-				e.Mutate(gen, mutation)
+				m.Mutate(e.Learner, mutation, gen)
 			}
 		}()
 	}
