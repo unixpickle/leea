@@ -55,7 +55,7 @@ Here, I will put the best results as I get them. The batch size for every experi
       <td>80.79%</td>
       <td>FC-D</td>
       <td>768</td>
-      <td>0.01*0.995<sup>t</sup></td>
+      <td>0.0005 + 0.01*0.995<sup>t</sup></td>
       <td>0.5</td>
       <td>1967</td>
     </tr>
