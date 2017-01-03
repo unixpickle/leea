@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -38,11 +37,11 @@ func main() {
 	var outFile string
 	var convolutional bool
 
-	flag.Float64Var(&mutInit, "mut", 0.2, "mutation rate")
+	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 1, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
 
-	flag.Float64Var(&decayInit, "decay", 0.017, "weight decay rate")
+	flag.Float64Var(&decayInit, "decay", 0.0017, "weight decay rate")
 	flag.Float64Var(&decayDecay, "decaydecay", 1, "weight decay decay rate")
 	flag.Float64Var(&decayBaseline, "decaybias", 0, "weight decay bias")
 
@@ -108,17 +107,10 @@ func main() {
 				net = createConvNet()
 			} else {
 				net = neuralnet.Network{
-					&neuralnet.RescaleLayer{Scale: 1 / math.Sqrt(28*28)},
 					neuralnet.NewDenseLayer(28*28, 300),
 					&neuralnet.HyperbolicTangent{},
-					&neuralnet.RescaleLayer{Scale: 1 / math.Sqrt(300)},
 					neuralnet.NewDenseLayer(300, 10),
 					&neuralnet.SoftmaxLayer{},
-				}
-				for _, l := range net {
-					if d, ok := l.(*neuralnet.DenseLayer); ok {
-						d.Weights.Data.Vector.Scale(math.Sqrt(float64(d.InputCount)))
-					}
 				}
 			}
 		}
