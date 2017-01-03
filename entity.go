@@ -1,10 +1,6 @@
 package leea
 
-import (
-	"math/rand"
-
-	"github.com/unixpickle/sgd"
-)
+import "github.com/unixpickle/sgd"
 
 // An Entity is a single (mutable) individual.
 type Entity struct {
@@ -18,17 +14,6 @@ func (e *Entity) Decay(r float64) {
 	for _, p := range e.Learner.Parameters() {
 		for i, x := range p.Vector {
 			p.Vector[i] -= x * r
-		}
-	}
-}
-
-// Mutate applies normally-distributed noise to the
-// parameters with standard deviation d.
-func (e *Entity) Mutate(s rand.Source, d float64) {
-	r := rand.New(s)
-	for _, p := range e.Learner.Parameters() {
-		for i, comp := range p.Vector {
-			p.Vector[i] = comp + r.NormFloat64()*d
 		}
 	}
 }

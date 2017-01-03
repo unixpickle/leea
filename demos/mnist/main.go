@@ -69,15 +69,17 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		Crosser:  &leea.NeuronalCrosser{},
+		Mutator: &leea.AddMutator{
+			Stddev: &leea.ExpSchedule{
+				Init:      mutInit,
+				DecayRate: mutDecay,
+				Baseline:  mutBaseline,
+			},
+		},
 		DecaySchedule: &leea.ExpSchedule{
 			Init:      decayInit,
 			DecayRate: decayDecay,
 			Baseline:  decayBaseline,
-		},
-		MutationSchedule: &leea.ExpSchedule{
-			Init:      mutInit,
-			DecayRate: mutDecay,
-			Baseline:  mutBaseline,
 		},
 		CrossOverSchedule: &leea.ExpSchedule{
 			Init:      crossInit,

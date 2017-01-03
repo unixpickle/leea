@@ -21,6 +21,7 @@ type Trainer struct {
 	Samples    SampleSource
 	Population []*Entity
 	Selector   Selector
+	Mutator    Mutator
 
 	// Crosser is used to perform genetic cross-over.
 	// If this is nil, BasicCrosser is used.
@@ -137,7 +138,6 @@ func (t *Trainer) generation() error {
 }
 
 func (t *Trainer) mutateAll() {
-	mutation := t.MutationSchedule.ValueAtTime(t.Generation)
 	decay := 0.0
 	if t.DecaySchedule != nil {
 		decay = t.DecaySchedule.ValueAtTime(t.Generation)
@@ -161,7 +161,7 @@ func (t *Trainer) mutateAll() {
 				if decay != 0 {
 					e.Decay(decay)
 				}
-				e.Mutate(gen, mutation)
+				t.Mutator.Mutate(t.Generation, e.Learner, gen)
 			}
 		}()
 	}
