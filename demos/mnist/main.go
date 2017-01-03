@@ -38,10 +38,10 @@ func main() {
 	var convolutional bool
 
 	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
-	flag.Float64Var(&mutDecay, "mutdecay", 1, "mutation decay rate")
-	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
+	flag.Float64Var(&mutDecay, "mutdecay", 0.996, "mutation decay rate")
+	flag.Float64Var(&mutBaseline, "mutbias", 0.0001, "mutation bias")
 
-	flag.Float64Var(&decayInit, "decay", 0.0017, "weight decay rate")
+	flag.Float64Var(&decayInit, "decay", 0, "weight decay rate")
 	flag.Float64Var(&decayDecay, "decaydecay", 1, "weight decay decay rate")
 	flag.Float64Var(&decayBaseline, "decaybias", 0, "weight decay bias")
 
@@ -60,6 +60,10 @@ func main() {
 
 	flag.Parse()
 
+	if convolutional {
+		panic("TODO: support set mutator on convolutional")
+	}
+
 	log.Println("Initializing trainer...")
 	trainer := &leea.Trainer{
 		Evaluator: Evaluator{},
@@ -69,8 +73,9 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		Crosser:  &leea.NeuronalCrosser{},
-		Mutator: &leea.AddMutator{
-			Stddev: &leea.ExpSchedule{
+		Mutator: &leea.SetMutator{
+			Stddevs: []float64{0.10, 0.10, 0.10, 0.10},
+			Fraction: &leea.ExpSchedule{
 				Init:      mutInit,
 				DecayRate: mutDecay,
 				Baseline:  mutBaseline,
