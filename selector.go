@@ -14,7 +14,10 @@ type Selector interface {
 	//
 	// The receiver should not modify the slice or assume
 	// that the slice will remain unchanged after the call.
-	SetEntities(e []*Entity)
+	//
+	// The scale indicates the value by which fitnesses
+	// should be divided before being used.
+	SetEntities(e []*Entity, scale float64)
 
 	// Select selects the next entity.
 	// Selection is done without replacement.
@@ -36,12 +39,14 @@ type RouletteWheel struct {
 	Temperature float64
 
 	entities []*Entity
+	scale    float64
 	total    float64
 }
 
 // SetEntities sets the entities for selection.
-func (r *RouletteWheel) SetEntities(e []*Entity) {
+func (r *RouletteWheel) SetEntities(e []*Entity, scale float64) {
 	r.entities = append([]*Entity{}, e...)
+	r.scale = scale
 	r.recomputeTotal()
 }
 
@@ -49,10 +54,10 @@ func (r *RouletteWheel) SetEntities(e []*Entity) {
 func (r *RouletteWheel) Select() *Entity {
 	num := rand.Float64() * r.total
 	for i, e := range r.entities {
-		num -= r.tempAdjust(e.Fitness)
+		num -= r.properFitness(e.Fitness)
 		if i == len(r.entities)-1 || num < 0 {
 			oldTotal := r.total
-			r.total -= r.tempAdjust(e.Fitness)
+			r.total -= r.properFitness(e.Fitness)
 
 			// Recompute if too much numerical precision was lost.
 			if math.Abs(r.total/oldTotal) < 1e-3 {
@@ -67,17 +72,17 @@ func (r *RouletteWheel) Select() *Entity {
 	panic("no entities to select")
 }
 
-func (r *RouletteWheel) tempAdjust(x float64) float64 {
+func (r *RouletteWheel) properFitness(x float64) float64 {
 	if r.Temperature == 0 || r.Temperature == 1 {
-		return x
+		return x / r.scale
 	}
-	return math.Pow(x, 1/r.Temperature)
+	return math.Pow(x/r.scale, 1/r.Temperature)
 }
 
 func (r *RouletteWheel) recomputeTotal() {
 	r.total = 0
 	for _, e := range r.entities {
-		r.total += r.tempAdjust(e.Fitness)
+		r.total += r.properFitness(e.Fitness)
 	}
 }
 
@@ -88,7 +93,7 @@ type SortSelector struct {
 }
 
 // SetEntities sets the entities for selection.
-func (s *SortSelector) SetEntities(e []*Entity) {
+func (s *SortSelector) SetEntities(e []*Entity, scale float64) {
 	x := append(fitnessSorter{}, e...)
 	sort.Sort(x)
 	s.entities = x

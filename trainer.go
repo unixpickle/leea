@@ -58,6 +58,32 @@ type Trainer struct {
 	Generation int
 }
 
+// FitnessScale is the number by which fitnesses should be
+// divided to get the "running average" fitness.
+// Basically, it accounts for the geometric series with
+// decay rate given by t.Inheritance.
+func (t *Trainer) FitnessScale() float64 {
+	if t.Generation < 2 {
+		return 1
+	}
+	if t.Inheritance == 1 {
+		return float64(t.Generation - 1)
+	}
+
+	// Use geometric series if it's accurate enough.
+	epsilon := math.Nextafter(1, 2) - 1
+	if math.Pow(t.Inheritance, float64(t.Generation-1)) < epsilon {
+		return 1 / (1 - t.Inheritance)
+	}
+
+	sum := 1.0
+	for i := 1; i < t.Generation; i++ {
+		sum *= t.Inheritance
+		sum += 1
+	}
+	return sum
+}
+
 // MaxFitness returns the maximum fitness across everyone
 // in the current generation.
 func (t *Trainer) MaxFitness() float64 {
@@ -169,7 +195,7 @@ func (t *Trainer) mutateAll() {
 }
 
 func (t *Trainer) reorderEntities() {
-	t.Selector.SetEntities(t.Population)
+	t.Selector.SetEntities(t.Population, t.FitnessScale())
 	for i := range t.Population {
 		t.Population[i] = t.Selector.Select()
 	}

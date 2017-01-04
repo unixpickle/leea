@@ -118,12 +118,9 @@ func main() {
 	}
 
 	log.Println("Training...")
-	fitScale := 1.0
 	trainer.Evolve(func() bool {
 		log.Printf("generation %d: max_fit=%f", trainer.Generation,
-			trainer.MaxFitness()/fitScale)
-		fitScale *= trainer.Inheritance
-		fitScale += 1
+			trainer.MaxFitness()/trainer.FitnessScale())
 		return true
 	})
 
