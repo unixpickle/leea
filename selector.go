@@ -26,6 +26,10 @@ type Selector interface {
 
 // A RouletteWheel selects entities by randomly choosing
 // them with probability proportional to their fitnesses.
+//
+// It is important to choose the proper units for the
+// fitness measure.
+// In particular, fitness values can never be negative.
 type RouletteWheel struct {
 	// Temperature controls how biased selections should be
 	// towards more fit individuals.
@@ -73,6 +77,9 @@ func (r *RouletteWheel) Select() *Entity {
 }
 
 func (r *RouletteWheel) properFitness(x float64) float64 {
+	if x < 0 {
+		panic("RouletteWheel requires non-negative fitnesses.")
+	}
 	if r.Temperature == 0 || r.Temperature == 1 {
 		return x / r.scale
 	}
