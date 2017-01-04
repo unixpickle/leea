@@ -87,7 +87,7 @@ func (t *Trainer) FitnessScale() float64 {
 // MaxFitness returns the maximum fitness across everyone
 // in the current generation.
 func (t *Trainer) MaxFitness() float64 {
-	var m float64
+	m := math.Inf(-1)
 	for _, e := range t.Population {
 		m = math.Max(m, e.Fitness)
 	}
