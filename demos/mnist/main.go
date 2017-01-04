@@ -12,17 +12,8 @@ import (
 	"github.com/unixpickle/autofunc"
 	"github.com/unixpickle/leea"
 	"github.com/unixpickle/mnist"
-	"github.com/unixpickle/sgd"
 	"github.com/unixpickle/weakai/neuralnet"
 )
-
-type Evaluator struct{}
-
-func (_ Evaluator) Evaluate(e *leea.Entity, s sgd.SampleSet) float64 {
-	b := e.Learner.(neuralnet.Network).BatchLearner()
-	c := neuralnet.TotalCostBatcher(neuralnet.DotCost{}, b, s, 0)
-	return -c / float64(s.Len())
-}
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -36,6 +27,7 @@ func main() {
 	var batchSize int
 	var outFile string
 	var convolutional bool
+	var hardEval bool
 
 	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.996, "mutation decay rate")
@@ -57,6 +49,7 @@ func main() {
 
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
 	flag.BoolVar(&convolutional, "conv", false, "use convolutional network")
+	flag.BoolVar(&hardEval, "hard", false, "use % accuracy as fitness")
 
 	flag.Parse()
 
@@ -66,7 +59,7 @@ func main() {
 
 	log.Println("Initializing trainer...")
 	trainer := &leea.Trainer{
-		Evaluator: Evaluator{},
+		Evaluator: SoftEvaluator{},
 		Samples: &leea.CycleSampleSource{
 			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
 			BatchSize: batchSize,
@@ -93,6 +86,9 @@ func main() {
 		},
 		Inheritance:   inheritance,
 		SurvivalRatio: survivalRatio,
+	}
+	if hardEval {
+		trainer.Evaluator = HardEvaluator{}
 	}
 
 	netData, err := ioutil.ReadFile(outFile)
