@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 
+	"github.com/unixpickle/mnist"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/weakai/neuralnet"
 )
@@ -31,6 +32,21 @@ func main() {
 		fmt.Printf("param %d: E[X]=%.2f\tE[X^2]=%.2f\tSigma(X)=%.2f\n", i, m1, m2,
 			math.Sqrt(m2-m1*m1))
 	}
+
+	fmt.Println("Computing full error gradient...")
+	g := neuralnet.BatchRGradienter{
+		Learner:       net.BatchLearner(),
+		CostFunc:      neuralnet.DotCost{},
+		MaxBatchSize:  100,
+		MaxGoroutines: 1,
+	}
+	grad := g.Gradient(mnist.LoadTrainingDataSet().SGDSampleSet())
+	grad.Scale(1.0 / 60000.0)
+	var vals []linalg.Vector
+	for _, v := range grad {
+		vals = append(vals, v)
+	}
+	fmt.Println("Gradient second moment:", secondMoment(vals...))
 }
 
 func expectation(x linalg.Vector) float64 {
@@ -41,10 +57,14 @@ func expectation(x linalg.Vector) float64 {
 	return sum / float64(len(x))
 }
 
-func secondMoment(x linalg.Vector) float64 {
+func secondMoment(x ...linalg.Vector) float64 {
 	var sum float64
-	for _, v := range x {
-		sum += v * v
+	var divisor float64
+	for _, vec := range x {
+		divisor += float64(len(vec))
+		for _, v := range vec {
+			sum += v * v
+		}
 	}
-	return sum / float64(len(x))
+	return sum / divisor
 }
