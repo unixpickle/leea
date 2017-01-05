@@ -53,10 +53,6 @@ func main() {
 
 	flag.Parse()
 
-	if convolutional {
-		panic("TODO: support set mutator on convolutional")
-	}
-
 	log.Println("Initializing trainer...")
 	trainer := &leea.Trainer{
 		Evaluator: SoftEvaluator{},
@@ -86,6 +82,11 @@ func main() {
 		},
 		Inheritance:   inheritance,
 		SurvivalRatio: survivalRatio,
+	}
+	if convolutional {
+		trainer.Mutator.(*leea.SetMutator).Stddevs = []float64{
+			0.10, 0.10, 0.10, 0.10, 0.10, 0.10,
+		}
 	}
 	if hardEval {
 		trainer.Evaluator = HardEvaluator{}
