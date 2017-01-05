@@ -116,6 +116,63 @@ func (s *SortSelector) Select() *Entity {
 	return res
 }
 
+// TournamentSelector uses the tournament selection method
+// to select entities based on fitness.
+type TournamentSelector struct {
+	// Size is the tournament size.
+	Size int
+
+	// Prob is the probability of selecting the top entity
+	// in a tournament.
+	// The lower Prob is, the less likely the most fit entity
+	// is to be chosen.
+	Prob float64
+
+	entities []*Entity
+}
+
+// SetEntities sets the entities for selection.
+func (t *TournamentSelector) SetEntities(e []*Entity, scale float64) {
+	t.entities = append([]*Entity{}, e...)
+}
+
+// Select selects an entity and removes it.
+func (t *TournamentSelector) Select() *Entity {
+	pool := t.tournamentPool()
+	prob := t.Prob
+	var chosen *Entity
+	for i, entry := range pool {
+		if rand.Float64() < prob || i == len(pool)-1 {
+			chosen = entry
+			break
+		}
+	}
+
+	for i, x := range t.entities {
+		if x == chosen {
+			t.entities[i] = t.entities[len(t.entities)-1]
+			t.entities = t.entities[:len(t.entities)-1]
+			break
+		}
+	}
+
+	return chosen
+}
+
+func (t *TournamentSelector) tournamentPool() []*Entity {
+	var s fitnessSorter
+	if len(t.entities) < t.Size {
+		s = append(s, t.entities...)
+	} else {
+		indices := rand.Perm(len(t.entities))
+		for _, j := range indices[:t.Size] {
+			s = append(s, t.entities[j])
+		}
+	}
+	sort.Sort(s)
+	return s
+}
+
 type fitnessSorter []*Entity
 
 func (f fitnessSorter) Len() int {
