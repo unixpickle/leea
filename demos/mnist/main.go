@@ -28,6 +28,7 @@ func main() {
 	var outFile string
 	var convolutional bool
 	var hardEval bool
+	var setMutations bool
 
 	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.996, "mutation decay rate")
@@ -50,10 +51,16 @@ func main() {
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
 	flag.BoolVar(&convolutional, "conv", false, "use convolutional network")
 	flag.BoolVar(&hardEval, "hard", false, "use % accuracy as fitness")
+	flag.BoolVar(&setMutations, "setmut", false, "use set mutations")
 
 	flag.Parse()
 
 	log.Println("Initializing trainer...")
+	mutSchedule := &leea.ExpSchedule{
+		Init:      mutInit,
+		DecayRate: mutDecay,
+		Baseline:  mutBaseline,
+	}
 	trainer := &leea.Trainer{
 		Evaluator: SoftEvaluator{},
 		Samples: &leea.CycleSampleSource{
@@ -62,14 +69,6 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		Crosser:  &leea.NeuronalCrosser{},
-		Mutator: &leea.SetMutator{
-			Stddevs: []float64{0.10, 0.10, 0.10, 0.10},
-			Fraction: &leea.ExpSchedule{
-				Init:      mutInit,
-				DecayRate: mutDecay,
-				Baseline:  mutBaseline,
-			},
-		},
 		DecaySchedule: &leea.ExpSchedule{
 			Init:      decayInit,
 			DecayRate: decayDecay,
@@ -83,11 +82,21 @@ func main() {
 		Inheritance:   inheritance,
 		SurvivalRatio: survivalRatio,
 	}
-	if convolutional {
-		trainer.Mutator.(*leea.SetMutator).Stddevs = []float64{
-			0.10, 0.10, 0.10, 0.10, 0.10, 0.10,
+
+	if setMutations {
+		log.Println("Using set mutations...")
+		stddevs := []float64{0.10, 0.10, 0.10, 0.10}
+		if convolutional {
+			stddevs = []float64{0.10, 0.10, 0.10, 0.10, 0.10, 0.10}
 		}
+		trainer.Mutator = &leea.SetMutator{
+			Stddevs:  stddevs,
+			Fraction: mutSchedule,
+		}
+	} else {
+		trainer.Mutator = &leea.AddMutator{Stddev: mutSchedule}
 	}
+
 	if hardEval {
 		trainer.Evaluator = HardEvaluator{}
 	}
