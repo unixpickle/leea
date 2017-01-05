@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 
+	"github.com/unixpickle/autofunc"
+	"github.com/unixpickle/mnist"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/weakai/neuralnet"
 )
@@ -30,6 +33,17 @@ func main() {
 		m2 := secondMoment(p.Vector)
 		fmt.Printf("param %d: E[X]=%.2f\tE[X^2]=%.2f\tSigma(X)=%.2f\n", i, m1, m2,
 			math.Sqrt(m2-m1*m1))
+	}
+
+	if promptChoice("Training accuracy?") {
+		cl := func(in []float64) int {
+			out := net.Apply(&autofunc.Variable{Vector: in}).Output()
+			_, m := out.Max()
+			return m
+		}
+		ds := mnist.LoadTrainingDataSet()
+		log.Println("Correct:", ds.NumCorrect(cl))
+		log.Println("Histogram:", ds.CorrectnessHistogram(cl))
 	}
 
 	if promptChoice("Weight histogram?") {
