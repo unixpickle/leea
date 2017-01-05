@@ -1,6 +1,7 @@
 package leea
 
 import (
+	"math"
 	"math/rand"
 
 	"github.com/unixpickle/sgd"
@@ -90,4 +91,36 @@ func (n *NormSampler) Sample() float64 {
 	} else {
 		return n.r.NormFloat64()
 	}
+}
+
+// A LogisticSampler samples from the logistic
+// distribution, which is described by treating the
+// logistic sigmoid as a cumulative distribution function.
+//
+// The zero value of LogisticSampler will sample using the
+// default rand source.
+type LogisticSampler struct {
+	r *rand.Rand
+}
+
+// New creates a new LogisticSampler.
+func (l *LogisticSampler) New(r *rand.Rand) NumSampler {
+	return &LogisticSampler{r: r}
+}
+
+// Sample samples from the distribution.
+func (l *LogisticSampler) Sample() float64 {
+	x := -1.0
+
+	// Loop deals with a very unlikely edge case.
+	for x <= -1.0 {
+		if l.r != nil {
+			x = l.r.Float64()*2 - 1
+		} else {
+			x = rand.Float64()*2 - 1
+		}
+	}
+
+	val := math.Sqrt(3) / math.Pi * math.Log((1+x)/(1-x))
+	return val
 }
