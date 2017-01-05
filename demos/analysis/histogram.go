@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/unixpickle/sgd"
 )
@@ -16,7 +17,7 @@ func createHistogram(net sgd.Learner) {
 	count := map[int]int{}
 	for _, p := range net.Parameters() {
 		for _, x := range p.Vector {
-			bin := int(x/step + 0.5)
+			bin := int(math.Floor(x/step + 0.5))
 			count[bin]++
 		}
 	}
