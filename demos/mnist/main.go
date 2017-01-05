@@ -100,37 +100,7 @@ func main() {
 	if hardEval {
 		trainer.Evaluator = HardEvaluator{}
 	}
-
-	netData, err := ioutil.ReadFile(outFile)
-	if err == nil {
-		log.Println("Using existing network for population...")
-	} else {
-		log.Println("Creating population...")
-	}
-	for i := 0; i < population; i++ {
-		var net neuralnet.Network
-		if err == nil {
-			net, err = neuralnet.DeserializeNetwork(netData)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Deserialize network:", err)
-				os.Exit(1)
-			}
-		} else {
-			if convolutional {
-				net = createConvNet()
-			} else {
-				net = neuralnet.Network{
-					neuralnet.NewDenseLayer(28*28, 300),
-					&neuralnet.HyperbolicTangent{},
-					neuralnet.NewDenseLayer(300, 10),
-					&neuralnet.SoftmaxLayer{},
-				}
-			}
-		}
-		trainer.Population = append(trainer.Population, &leea.Entity{
-			Learner: net,
-		})
-	}
+	trainer.Population = populate(convolutional, outFile, population)
 
 	log.Println("Training...")
 	trainer.Evolve(func() bool {
@@ -141,7 +111,7 @@ func main() {
 
 	log.Println("Saving fittest network...")
 	net := trainer.BestEntity().Learner.(neuralnet.Network)
-	netData, err = net.Serialize()
+	netData, err := net.Serialize()
 	if err != nil {
 		log.Println("Serialize failed:", err)
 	} else {
@@ -150,6 +120,44 @@ func main() {
 		}
 	}
 
+	crossValidate(net)
+}
+
+func populate(conv bool, outFile string, pop int) []*leea.Entity {
+	var res []*leea.Entity
+
+	netData, err := ioutil.ReadFile(outFile)
+	if err == nil {
+		log.Println("Using existing network for population...")
+	} else {
+		log.Println("Creating population...")
+	}
+	for i := 0; i < pop; i++ {
+		var net neuralnet.Network
+		if err == nil {
+			net, err = neuralnet.DeserializeNetwork(netData)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Deserialize network:", err)
+				os.Exit(1)
+			}
+		} else {
+			if conv {
+				net = createConvNet()
+			} else {
+				net = neuralnet.Network{
+					neuralnet.NewDenseLayer(28*28, 300),
+					&neuralnet.HyperbolicTangent{},
+					neuralnet.NewDenseLayer(300, 10),
+					&neuralnet.SoftmaxLayer{},
+				}
+			}
+		}
+		res = append(res, &leea.Entity{Learner: net})
+	}
+	return res
+}
+
+func crossValidate(net neuralnet.Network) {
 	log.Println("Cross-validating...")
 	classif := func(s []float64) int {
 		out := net.Apply(&autofunc.Variable{Vector: s}).Output()
@@ -160,57 +168,4 @@ func main() {
 	log.Println("Total:", total)
 	hist := mnist.LoadTestingDataSet().CorrectnessHistogram(classif)
 	log.Println(hist)
-}
-
-func createConvNet() neuralnet.Network {
-	const (
-		HiddenSize     = 300
-		FilterSize     = 3
-		FilterCount    = 5
-		FilterStride   = 1
-		MaxPoolingSpan = 3
-	)
-
-	convOutWidth := (28-FilterSize)/FilterStride + 1
-	convOutHeight := (28-FilterSize)/FilterStride + 1
-
-	poolOutWidth := convOutWidth / MaxPoolingSpan
-	if convOutWidth%MaxPoolingSpan != 0 {
-		poolOutWidth++
-	}
-	poolOutHeight := convOutWidth / MaxPoolingSpan
-	if convOutHeight%MaxPoolingSpan != 0 {
-		poolOutHeight++
-	}
-	net := neuralnet.Network{
-		&neuralnet.ConvLayer{
-			FilterCount:  FilterCount,
-			FilterWidth:  FilterSize,
-			FilterHeight: FilterSize,
-			Stride:       FilterStride,
-			InputWidth:   28,
-			InputHeight:  28,
-			InputDepth:   1,
-		},
-		&neuralnet.Sigmoid{},
-		&neuralnet.MaxPoolingLayer{
-			XSpan:       MaxPoolingSpan,
-			YSpan:       MaxPoolingSpan,
-			InputWidth:  convOutWidth,
-			InputHeight: convOutHeight,
-			InputDepth:  FilterCount,
-		},
-		&neuralnet.DenseLayer{
-			InputCount:  poolOutWidth * poolOutHeight * FilterCount,
-			OutputCount: HiddenSize,
-		},
-		&neuralnet.Sigmoid{},
-		&neuralnet.DenseLayer{
-			InputCount:  HiddenSize,
-			OutputCount: 10,
-		},
-		&neuralnet.SoftmaxLayer{},
-	}
-	net.Randomize()
-	return net
 }
