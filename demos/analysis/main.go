@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 
-	"github.com/unixpickle/mnist"
 	"github.com/unixpickle/num-analysis/linalg"
 	"github.com/unixpickle/weakai/neuralnet"
 )
@@ -33,20 +32,13 @@ func main() {
 			math.Sqrt(m2-m1*m1))
 	}
 
-	fmt.Println("Computing full error gradient...")
-	g := neuralnet.BatchRGradienter{
-		Learner:       net.BatchLearner(),
-		CostFunc:      neuralnet.DotCost{},
-		MaxBatchSize:  100,
-		MaxGoroutines: 1,
+	if promptChoice("Weight histogram?") {
+		createHistogram(net)
 	}
-	grad := g.Gradient(mnist.LoadTrainingDataSet().SGDSampleSet())
-	grad.Scale(1.0 / 60000.0)
-	var vals []linalg.Vector
-	for _, v := range grad {
-		vals = append(vals, v)
+
+	if promptChoice("Error gradient stats?") {
+		fullGradient(net)
 	}
-	fmt.Println("Gradient second moment:", secondMoment(vals...))
 }
 
 func expectation(x linalg.Vector) float64 {
