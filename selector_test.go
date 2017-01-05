@@ -13,7 +13,7 @@ func TestRouletteWheel(t *testing.T) {
 			{Fitness: 10},
 			{Fitness: 100},
 			{Fitness: 1000},
-		})
+		}, 1)
 		var fits []float64
 		for i := 0; i < 4; i++ {
 			fits = append(fits, selector.Select().Fitness)

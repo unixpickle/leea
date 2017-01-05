@@ -56,11 +56,6 @@ func main() {
 	flag.Parse()
 
 	log.Println("Initializing trainer...")
-	mutSchedule := &leea.ExpSchedule{
-		Init:      mutInit,
-		DecayRate: mutDecay,
-		Baseline:  mutBaseline,
-	}
 	trainer := &leea.Trainer{
 		Evaluator: SoftEvaluator{},
 		Samples: &leea.CycleSampleSource{
@@ -83,6 +78,12 @@ func main() {
 		SurvivalRatio: survivalRatio,
 	}
 
+	mutSchedule := &leea.ExpSchedule{
+		Init:      mutInit,
+		DecayRate: mutDecay,
+		Baseline:  mutBaseline,
+	}
+	sampler := &leea.NormSampler{}
 	if setMutations {
 		log.Println("Using set mutations...")
 		stddevs := []float64{0.10, 0.10, 0.10, 0.10}
@@ -92,9 +93,13 @@ func main() {
 		trainer.Mutator = &leea.SetMutator{
 			Stddevs:  stddevs,
 			Fraction: mutSchedule,
+			Sampler:  sampler,
 		}
 	} else {
-		trainer.Mutator = &leea.AddMutator{Stddev: mutSchedule}
+		trainer.Mutator = &leea.AddMutator{
+			Stddev:  mutSchedule,
+			Sampler: sampler,
+		}
 	}
 
 	if hardEval {
