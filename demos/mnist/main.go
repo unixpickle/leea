@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -20,7 +21,7 @@ func main() {
 
 	var mutInit, mutDecay, mutBaseline float64
 	var crossInit, crossDecay, crossBaseline float64
-	var decayInit, decayDecay, decayBaseline float64
+	var decayTarget float64
 	var inheritance float64
 	var survivalRatio float64
 	var population int
@@ -34,9 +35,7 @@ func main() {
 	flag.Float64Var(&mutDecay, "mutdecay", 0.996, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0.0001, "mutation bias")
 
-	flag.Float64Var(&decayInit, "decay", 0, "weight decay rate")
-	flag.Float64Var(&decayDecay, "decaydecay", 1, "weight decay decay rate")
-	flag.Float64Var(&decayBaseline, "decaybias", 0, "weight decay bias")
+	flag.Float64Var(&decayTarget, "decay", 0.1, "decay target stddev")
 
 	flag.Float64Var(&crossInit, "cross", 0.5, "cross-over rate")
 	flag.Float64Var(&crossDecay, "crossdecay", 1, "cross-over decay rate")
@@ -62,13 +61,9 @@ func main() {
 			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
 			BatchSize: batchSize,
 		},
-		Selector: &leea.SortSelector{},
-		Crosser:  &leea.NeuronalCrosser{},
-		DecaySchedule: &leea.ExpSchedule{
-			Init:      decayInit,
-			DecayRate: decayDecay,
-			Baseline:  decayBaseline,
-		},
+		Selector:      &leea.SortSelector{},
+		Crosser:       &leea.NeuronalCrosser{},
+		DecaySchedule: &leea.ExpSchedule{},
 		CrossOverSchedule: &leea.ExpSchedule{
 			Init:      crossInit,
 			DecayRate: crossDecay,
@@ -109,6 +104,15 @@ func main() {
 
 	log.Println("Training...")
 	trainer.Evolve(func() bool {
+		if !setMutations {
+			// Formula for final weight stddev was found empirically.
+			// stddev ~= 0.892 * noise * decay^-0.421
+			// decay ~= (stddev / (0.892 * noise))^(-1/0.421)
+			noise := mutSchedule.ValueAtTime(trainer.Generation)
+			trainer.DecaySchedule = &leea.ExpSchedule{
+				Baseline: math.Pow(decayTarget/(0.892*noise), -1/0.421),
+			}
+		}
 		log.Printf("generation %d: max_fit=%f", trainer.Generation,
 			trainer.MaxFitness()/trainer.FitnessScale())
 		return true
