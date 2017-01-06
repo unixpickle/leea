@@ -32,10 +32,6 @@ type Trainer struct {
 	// If this is nil, no weight decay is applied.
 	DecaySchedule Schedule
 
-	// MutationSchedule determines the mutation stddev for a
-	// given generation.
-	MutationSchedule Schedule
-
 	// CrossOverSchedule determines the fraction of an
 	// individuals parameters that should be updated via
 	// cross-over.
