@@ -9,6 +9,7 @@ Here, I will put the best results as I get them. The batch size for every experi
  * FC: fully-connected network with standard LEEA. No weight decay is used. Mutations are simply Gaussian noise.
  * FC-S: fully-connected network with assignment-based mutation. Mutation overwrites certain weights with values sampled from a Gaussian.
  * FC-D: fully-connected network with weight-decay used to prevent weight explosion.
+ * FC-D(1): like FC-D, but with tournament selection and cross-entropy loss.
 
 <table>
   <thead>
@@ -23,6 +24,15 @@ Here, I will put the best results as I get them. The batch size for every experi
     </tr>
   </thead>
   <tbody>
+    <tr>
+      <td>MNIST</td>
+      <td>92.20%</td>
+      <td>FC-D(1)</td>
+      <td>512</td>
+      <td>0.0001 + 0.01*0.999<sup>t</sup></td>
+      <td>0.5</td>
+      <td>8744</td>
+    </tr>
     <tr>
       <td>MNIST</td>
       <td>90.51%</td>
