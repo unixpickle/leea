@@ -49,7 +49,7 @@ func createConvNet() neuralnet.Network {
 			InputCount:  HiddenSize,
 			OutputCount: 10,
 		},
-		&neuralnet.SoftmaxLayer{},
+		&neuralnet.LogSoftmaxLayer{},
 	}
 	net.Randomize()
 	return net

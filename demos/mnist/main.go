@@ -27,12 +27,13 @@ func main() {
 	var batchSize int
 	var outFile string
 	var convolutional bool
-	var hardEval bool
 	var setMutations bool
 	var elitism int
+	var tournamentSize int
+	var tournamentProb float64
 
 	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
-	flag.Float64Var(&mutDecay, "mutdecay", 0.996, "mutation decay rate")
+	flag.Float64Var(&mutDecay, "mutdecay", 0.999, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0.0001, "mutation bias")
 
 	flag.Float64Var(&decayTarget, "decay", 0.1, "decay target stddev")
@@ -44,26 +45,31 @@ func main() {
 	flag.Float64Var(&inheritance, "inherit", 0.95, "inheritance rate")
 	flag.Float64Var(&survivalRatio, "survival", 0.2, "survival ratio")
 
+	flag.IntVar(&tournamentSize, "tournsize", 5, "tournament size")
+	flag.Float64Var(&tournamentProb, "tournprob", 1, "tournament probability")
+
 	flag.IntVar(&population, "population", 512, "population size")
 	flag.IntVar(&batchSize, "batch", 64, "samples per epoch")
 	flag.IntVar(&elitism, "elitism", 0, "elite count")
 
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
 	flag.BoolVar(&convolutional, "conv", false, "use convolutional network")
-	flag.BoolVar(&hardEval, "hard", false, "use % accuracy as fitness")
 	flag.BoolVar(&setMutations, "setmut", false, "use set mutations")
 
 	flag.Parse()
 
 	log.Println("Initializing trainer...")
 	trainer := &leea.Trainer{
-		Evaluator: SoftEvaluator{},
+		Evaluator: &leea.NegCost{Cost: neuralnet.DotCost{}},
 		Samples: &leea.CycleSampleSource{
 			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
 			BatchSize: batchSize,
 		},
-		Selector: &leea.SortSelector{},
-		Crosser:  &leea.NeuronalCrosser{},
+		Selector: &leea.TournamentSelector{
+			Size: tournamentSize,
+			Prob: tournamentProb,
+		},
+		Crosser: &leea.NeuronalCrosser{},
 		CrossOverSchedule: &leea.ExpSchedule{
 			Init:      crossInit,
 			DecayRate: crossDecay,
@@ -102,9 +108,6 @@ func main() {
 		}
 	}
 
-	if hardEval {
-		trainer.Evaluator = HardEvaluator{}
-	}
 	trainer.Population = populate(convolutional, outFile, population)
 
 	log.Println("Training...")
@@ -153,7 +156,7 @@ func populate(conv bool, outFile string, pop int) []*leea.Entity {
 					neuralnet.NewDenseLayer(28*28, 300),
 					&neuralnet.HyperbolicTangent{},
 					neuralnet.NewDenseLayer(300, 10),
-					&neuralnet.SoftmaxLayer{},
+					&neuralnet.LogSoftmaxLayer{},
 				}
 			}
 		}
