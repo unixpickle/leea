@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"sort"
 	"sync"
 )
 
@@ -47,6 +48,10 @@ type Trainer struct {
 	//
 	// If this is 0, DefaultSurvivalRatio is used.
 	SurvivalRatio float64
+
+	// Elitism specifies the number of individuals who are
+	// untouched by mutation and cross-over.
+	Elitism int
 
 	// Generation is the current generation number.
 	// This starts at 0 and is incremented every time Evolve
@@ -144,6 +149,9 @@ func (t *Trainer) generation() error {
 	ordering := rand.Perm(len(t.Population))
 	crossOver := t.CrossOverSchedule.ValueAtTime(t.Generation)
 	for i, j := range ordering[:len(ordering)-1] {
+		if j < t.Elitism {
+			continue
+		}
 		remainingIdxs := ordering[i+1:]
 		otherIdx := remainingIdxs[rand.Intn(len(remainingIdxs))]
 		keepRatio := 1 - crossOver
@@ -165,8 +173,8 @@ func (t *Trainer) mutateAll() {
 		decay = t.DecaySchedule.ValueAtTime(t.Generation)
 	}
 
-	entities := make(chan *Entity, len(t.Population))
-	for _, x := range t.Population {
+	entities := make(chan *Entity, len(t.Population)-t.Elitism)
+	for _, x := range t.Population[t.Elitism:] {
 		entities <- x
 	}
 	close(entities)
@@ -191,8 +199,12 @@ func (t *Trainer) mutateAll() {
 }
 
 func (t *Trainer) reorderEntities() {
-	t.Selector.SetEntities(t.Population, t.FitnessScale())
-	for i := range t.Population {
+	if t.Elitism > 0 {
+		s := fitnessSorter(t.Population)
+		sort.Sort(s)
+	}
+	t.Selector.SetEntities(t.Population[t.Elitism:], t.FitnessScale())
+	for i := t.Elitism; i < len(t.Population); i++ {
 		t.Population[i] = t.Selector.Select()
 	}
 }

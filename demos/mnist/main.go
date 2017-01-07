@@ -29,6 +29,7 @@ func main() {
 	var convolutional bool
 	var hardEval bool
 	var setMutations bool
+	var elitism int
 
 	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.996, "mutation decay rate")
@@ -45,6 +46,7 @@ func main() {
 
 	flag.IntVar(&population, "population", 512, "population size")
 	flag.IntVar(&batchSize, "batch", 64, "samples per epoch")
+	flag.IntVar(&elitism, "elitism", 0, "elite count")
 
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
 	flag.BoolVar(&convolutional, "conv", false, "use convolutional network")
@@ -69,6 +71,7 @@ func main() {
 		},
 		Inheritance:   inheritance,
 		SurvivalRatio: survivalRatio,
+		Elitism:       elitism,
 	}
 
 	mutSchedule := &leea.ExpSchedule{
