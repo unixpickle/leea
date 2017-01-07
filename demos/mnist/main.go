@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math"
 	"math/rand"
 	"os"
 	"time"
@@ -61,9 +60,8 @@ func main() {
 			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
 			BatchSize: batchSize,
 		},
-		Selector:      &leea.SortSelector{},
-		Crosser:       &leea.NeuronalCrosser{},
-		DecaySchedule: &leea.ExpSchedule{},
+		Selector: &leea.SortSelector{},
+		Crosser:  &leea.NeuronalCrosser{},
 		CrossOverSchedule: &leea.ExpSchedule{
 			Init:      crossInit,
 			DecayRate: crossDecay,
@@ -95,6 +93,10 @@ func main() {
 			Stddev:  mutSchedule,
 			Sampler: sampler,
 		}
+		trainer.DecaySchedule = &leea.DecaySchedule{
+			Mut:    mutSchedule,
+			Target: decayTarget,
+		}
 	}
 
 	if hardEval {
@@ -104,15 +106,6 @@ func main() {
 
 	log.Println("Training...")
 	trainer.Evolve(func() bool {
-		if !setMutations {
-			// Formula for final weight stddev was found empirically.
-			// stddev ~= 0.892 * noise * decay^-0.421
-			// decay ~= (stddev / (0.892 * noise))^(-1/0.421)
-			noise := mutSchedule.ValueAtTime(trainer.Generation)
-			trainer.DecaySchedule = &leea.ExpSchedule{
-				Baseline: math.Pow(decayTarget/(0.892*noise), -1/0.421),
-			}
-		}
 		log.Printf("generation %d: max_fit=%f", trainer.Generation,
 			trainer.MaxFitness()/trainer.FitnessScale())
 		return true
