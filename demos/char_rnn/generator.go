@@ -35,7 +35,7 @@ func GenerateSample(b rnn.StackedBlock) string {
 func pick(vec linalg.Vector) int {
 	n := rand.Float64()
 	for i, x := range vec {
-		n -= x
+		n -= math.Exp(x)
 		if n < 0 {
 			return i
 		}
