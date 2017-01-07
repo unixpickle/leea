@@ -74,6 +74,7 @@ func main() {
 			},
 			Stddevs: []float64{0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
 				0.05, 0.05, 0.05},
+			Sampler: &leea.NormSampler{},
 		},
 		CrossOverSchedule: &leea.ExpSchedule{
 			Init:      crossInit,
@@ -114,7 +115,7 @@ func main() {
 				},
 				rnn.NewNetworkBlock(neuralnet.Network{
 					neuralnet.NewDenseLayer(StateSize, 0x100),
-					&neuralnet.SoftmaxLayer{},
+					&neuralnet.LogSoftmaxLayer{},
 				}, 0),
 			}
 		}
