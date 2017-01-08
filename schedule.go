@@ -34,9 +34,11 @@ type DecaySchedule struct {
 // the desired standard deviation, based on the current
 // value of d.Mut.
 func (d *DecaySchedule) ValueAtTime(t int) float64 {
-	// Formula for final weight stddev was found empirically.
-	// stddev ~= 0.8027 * noise * decay^-0.4646
-	// decay ~= (stddev / (0.8027 * noise))^(-1/0.4646)
-	noise := d.Mut.ValueAtTime(t)
-	return math.Pow(d.Target/(0.8027*noise), -1/0.4646)
+	// Formula for final weight stddev was found empirically,
+	// but it is almost surely correct.
+	//
+	// stddev = noise * sqrt(-1/(decay*(decay-2)))
+	// decay^2 - 2*decay + (noise/stddev)^2 = 0
+	c := math.Pow(d.Mut.ValueAtTime(t)/d.Target, 2)
+	return (2 - math.Sqrt(4*(1-c))) / 2
 }
