@@ -95,6 +95,15 @@ func (t *Trainer) MaxFitness() float64 {
 	return m
 }
 
+// MeanFitness returns the mean fitness.
+func (t *Trainer) MeanFitness() float64 {
+	var sum float64
+	for _, e := range t.Population {
+		sum += e.Fitness
+	}
+	return sum / float64(len(t.Population))
+}
+
 // BestEntity returns the entity with maximum fitness.
 func (t *Trainer) BestEntity() *Entity {
 	res := t.Population[0]

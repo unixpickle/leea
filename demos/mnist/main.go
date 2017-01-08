@@ -112,8 +112,9 @@ func main() {
 
 	log.Println("Training...")
 	trainer.Evolve(func() bool {
-		log.Printf("generation %d: max_fit=%f", trainer.Generation,
-			trainer.MaxFitness()/trainer.FitnessScale())
+		log.Printf("generation %d: max_fit=%f mean_fit=%f", trainer.Generation,
+			trainer.MaxFitness()/trainer.FitnessScale(),
+			trainer.MeanFitness()/trainer.FitnessScale())
 		return true
 	})
 
