@@ -34,7 +34,7 @@ func main() {
 
 	flag.Float64Var(&mutInit, "mut", 0.01, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.999, "mutation decay rate")
-	flag.Float64Var(&mutBaseline, "mutbias", 0.0001, "mutation bias")
+	flag.Float64Var(&mutBaseline, "mutbias", 0.001, "mutation bias")
 
 	flag.Float64Var(&decayTarget, "decay", 0.1, "decay target stddev")
 
@@ -49,7 +49,7 @@ func main() {
 	flag.Float64Var(&tournamentProb, "tournprob", 1, "tournament probability")
 
 	flag.IntVar(&population, "population", 512, "population size")
-	flag.IntVar(&batchSize, "batch", 64, "samples per epoch")
+	flag.IntVar(&batchSize, "batch", 300, "samples per epoch")
 	flag.IntVar(&elitism, "elitism", 0, "elite count")
 
 	flag.StringVar(&outFile, "file", "out_net", "saved network file")
