@@ -4,12 +4,13 @@ In this repository, I will experiment with the [limited-evaluation evolutionary 
 
 # Results
 
-Here, I will put the best results as I get them. The batch size for every experiment is 64. The models are:
+Here, I will put the best results as I get them. The batch size for every experiment is 64 except for FD-D(2). The models are:
 
  * FC: fully-connected network with standard LEEA. No weight decay is used. Mutations are simply Gaussian noise.
  * FC-S: fully-connected network with assignment-based mutation. Mutation overwrites certain weights with values sampled from a Gaussian.
  * FC-D: fully-connected network with weight-decay used to prevent weight explosion.
  * FC-D(1): like FC-D, but with tournament selection and cross-entropy loss.
+ * FC-D(2): like FC-D(1), but with batch size 300
 
 <table>
   <thead>
@@ -24,6 +25,15 @@ Here, I will put the best results as I get them. The batch size for every experi
     </tr>
   </thead>
   <tbody>
+    <tr>
+      <td>MNIST</td>
+      <td>94.09%</td>
+      <td>FC-D(2)</td>
+      <td>512</td>
+      <td>0.001 + 0.01*0.999<sup>t</sup></td>
+      <td>0.5</td>
+      <td>12032</td>
+    </tr>
     <tr>
       <td>MNIST</td>
       <td>92.20%</td>
