@@ -8,7 +8,7 @@ import (
 	"github.com/unixpickle/sgd"
 )
 
-const MaxSentence = 200
+const MaxSentence = 100
 
 func ReadSamples(file string) (sgd.SampleSet, error) {
 	contents, err := ioutil.ReadFile(file)
@@ -19,8 +19,8 @@ func ReadSamples(file string) (sgd.SampleSet, error) {
 	var res sgd.SliceSampleSet
 	for _, sentence := range sentences {
 		sentence = strings.TrimSpace(sentence)
-		if len(sentence) > 0 && len(sentence) < MaxSentence {
-			res = append(res, Sample(sentence))
+		if len(sentence) >= MaxSentence {
+			res = append(res, Sample(sentence[:MaxSentence]))
 		}
 	}
 	return res, nil

@@ -13,13 +13,14 @@ import (
 )
 
 const (
-	StateSize  = 300
+	StateSize  = 512
 	EndSamples = 5
 )
 
 func main() {
 	var mutInit, mutDecay, mutBaseline float64
 	var crossInit, crossDecay, crossBaseline float64
+	var decayTarget float64
 	var inheritance float64
 	var survivalRatio float64
 	var population int
@@ -33,6 +34,8 @@ func main() {
 	flag.Float64Var(&crossInit, "cross", 0.5, "cross-over rate")
 	flag.Float64Var(&crossDecay, "crossdecay", 1, "cross-over decay rate")
 	flag.Float64Var(&crossBaseline, "crossbias", 0, "cross-over bias")
+
+	flag.Float64Var(&decayTarget, "decay", 0.05, "decay target")
 
 	flag.Float64Var(&inheritance, "inherit", 0.95, "inheritance rate")
 	flag.Float64Var(&survivalRatio, "survival", 0.2, "survival ratio")
@@ -58,6 +61,11 @@ func main() {
 	}
 
 	log.Println("Initializing trainer...")
+	mutSchedule := &leea.ExpSchedule{
+		Init:      mutInit,
+		DecayRate: mutDecay,
+		Baseline:  mutBaseline,
+	}
 	trainer := &leea.Trainer{
 		Evaluator: Evaluator{},
 		Samples: &leea.CycleSampleSource{
@@ -66,15 +74,13 @@ func main() {
 		},
 		Selector: &leea.SortSelector{},
 		Crosser:  &leea.NeuronalCrosser{},
-		Mutator: &leea.SetMutator{
-			Fraction: &leea.ExpSchedule{
-				Init:      mutInit,
-				DecayRate: mutDecay,
-				Baseline:  mutBaseline,
-			},
-			Stddevs: []float64{0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
-				0.05, 0.05, 0.05},
+		Mutator: &leea.AddMutator{
 			Sampler: &leea.NormSampler{},
+			Stddev:  mutSchedule,
+		},
+		DecaySchedule: &leea.DecaySchedule{
+			Mut:    mutSchedule,
+			Target: decayTarget,
 		},
 		CrossOverSchedule: &leea.ExpSchedule{
 			Init:      crossInit,
