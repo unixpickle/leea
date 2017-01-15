@@ -125,8 +125,8 @@ func main() {
 				}, 0),
 			}
 		}
-		trainer.Population = append(trainer.Population, &leea.Entity{
-			Learner: net,
+		trainer.Population = append(trainer.Population, &leea.FitEntity{
+			Entity: &leea.LearnerEntity{Learner: net},
 		})
 	}
 
@@ -138,7 +138,7 @@ func main() {
 	})
 
 	log.Println("Saving fittest network...")
-	net := trainer.BestEntity().Learner.(rnn.StackedBlock)
+	net := trainer.BestEntity().Entity.(*leea.LearnerEntity).Learner.(rnn.StackedBlock)
 	netData, err = net.Serialize()
 	if err != nil {
 		log.Println("Serialize failed:", err)

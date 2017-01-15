@@ -7,21 +7,26 @@ import (
 	"github.com/unixpickle/sgd"
 )
 
-// A Mutator applies mutations to sgd.Learners.
+// A Mutator applies mutations to Entity instances.
 // The mutation may depend on the generation, given by t.
+// Mutators are provided with a random source which they
+// may use for random number generation, allowing for
+// efficient parallel mutations.
 type Mutator interface {
-	Mutate(t int, l sgd.Learner, s rand.Source)
+	Mutate(t int, e Entity, s rand.Source)
 }
 
-// An AddMutator adds random noise according to a
-// scheduled standard deviation.
+// An AddMutator adds random noise to the parameters of
+// entities which implement sgd.Learner.
 type AddMutator struct {
 	Stddev  Schedule
 	Sampler NumSampler
 }
 
 // Mutate adds Gaussian mutations to the parameters.
-func (n *AddMutator) Mutate(t int, l sgd.Learner, s rand.Source) {
+// The e argument must be an sgd.Learner.
+func (n *AddMutator) Mutate(t int, e Entity, s rand.Source) {
+	l := e.(sgd.Learner)
 	r := rand.New(s)
 	sampler := n.Sampler.New(r)
 	d := n.Stddev.ValueAtTime(t)
@@ -33,7 +38,8 @@ func (n *AddMutator) Mutate(t int, l sgd.Learner, s rand.Source) {
 }
 
 // A SetMutator randomly assigns a certain fraction of
-// the parameters to values sampled from NumSampler.
+// the parameters of an sgd.Learner to values sampled
+// from NumSampler.
 type SetMutator struct {
 	Fraction Schedule
 
@@ -46,7 +52,9 @@ type SetMutator struct {
 }
 
 // Mutate replaces some values with randomly-sampled ones.
-func (s *SetMutator) Mutate(t int, l sgd.Learner, source rand.Source) {
+// The e argument must be an sgd.Learner.
+func (s *SetMutator) Mutate(t int, e Entity, source rand.Source) {
+	l := e.(sgd.Learner)
 	r := rand.New(source)
 	sampler := s.Sampler.New(r)
 	frac := s.Fraction.ValueAtTime(t)

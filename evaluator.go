@@ -5,11 +5,11 @@ import (
 	"github.com/unixpickle/weakai/neuralnet"
 )
 
-// An Evaluator evaluates an entity on a set of samples.
+// An Evaluator evaluates an Entity on a set of samples.
 // The Evaluate method produces a fitness measure for an
-// entity e on a sample set s.
+// Entity e on a sample set s.
 type Evaluator interface {
-	Evaluate(e *Entity, s sgd.SampleSet) float64
+	Evaluate(e Entity, s sgd.SampleSet) float64
 }
 
 // InvCost is an Evaluator which computes the cost of a
@@ -26,10 +26,10 @@ type InvCost struct {
 
 // Evaluate computes the reciprocal of the cost of the
 // entity on the batch.
-// In order for this to work, e.Learner must be a
-// neuralnet.Network.
-func (i *InvCost) Evaluate(e *Entity, s sgd.SampleSet) float64 {
-	b := e.Learner.(neuralnet.Network).BatchLearner()
+// In order for this to work, e must be a *LearnerEntity
+// and the learner must be a neuralnet.Network.
+func (i *InvCost) Evaluate(e Entity, s sgd.SampleSet) float64 {
+	b := e.(*LearnerEntity).Learner.(neuralnet.Network).BatchLearner()
 	return 1 / neuralnet.TotalCostBatcher(i.Cost, b, s, i.BatchSize)
 }
 
@@ -38,19 +38,19 @@ func (i *InvCost) Evaluate(e *Entity, s sgd.SampleSet) float64 {
 type NegCost struct {
 	Cost neuralnet.CostFunc
 
-	// Batchsize is the batch size for evaluating the neural
+	// BatchSize is the batch size for evaluating the neural
 	// network.
 	// If it is 0, the full set of samples is fed in at once.
 	BatchSize int
 }
 
 // Evaluate computes the negative cost.
-// In order for this to work, e.Learner must be a
-// neuralnet.Network.
+// In order for this to work, e must be a *LearnerEntity
+// and the learner must be a neuralnet.Network.
 //
 // The cost is divided by the number of samples.
-func (n *NegCost) Evaluate(e *Entity, s sgd.SampleSet) float64 {
-	b := e.Learner.(neuralnet.Network).BatchLearner()
+func (n *NegCost) Evaluate(e Entity, s sgd.SampleSet) float64 {
+	b := e.(*LearnerEntity).Learner.(neuralnet.Network).BatchLearner()
 	return -neuralnet.TotalCostBatcher(n.Cost, b, s, n.BatchSize) /
 		float64(s.Len())
 }

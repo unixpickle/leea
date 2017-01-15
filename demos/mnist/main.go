@@ -119,7 +119,7 @@ func main() {
 	})
 
 	log.Println("Saving fittest network...")
-	net := trainer.BestEntity().Learner.(neuralnet.Network)
+	net := trainer.BestEntity().Entity.(*leea.LearnerEntity).Learner.(neuralnet.Network)
 	netData, err := net.Serialize()
 	if err != nil {
 		log.Println("Serialize failed:", err)
@@ -132,8 +132,8 @@ func main() {
 	crossValidate(net)
 }
 
-func populate(conv bool, outFile string, pop int) []*leea.Entity {
-	var res []*leea.Entity
+func populate(conv bool, outFile string, pop int) []*leea.FitEntity {
+	var res []*leea.FitEntity
 
 	netData, err := ioutil.ReadFile(outFile)
 	if err == nil {
@@ -161,7 +161,9 @@ func populate(conv bool, outFile string, pop int) []*leea.Entity {
 				}
 			}
 		}
-		res = append(res, &leea.Entity{Learner: net})
+		res = append(res, &leea.FitEntity{
+			Entity: &leea.LearnerEntity{Learner: net},
+		})
 	}
 	return res
 }

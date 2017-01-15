@@ -10,7 +10,7 @@ import (
 
 type Evaluator struct{}
 
-func (_ Evaluator) Evaluate(e *leea.Entity, s sgd.SampleSet) float64 {
+func (_ Evaluator) Evaluate(e leea.Entity, s sgd.SampleSet) float64 {
 	var seqSamples sgd.SliceSampleSet
 	var totalLen int
 	for i := 0; i < s.Len(); i++ {
@@ -21,7 +21,7 @@ func (_ Evaluator) Evaluate(e *leea.Entity, s sgd.SampleSet) float64 {
 		})
 		totalLen += len(sample.InSeq())
 	}
-	b := e.Learner.(rnn.Block)
+	b := e.(*leea.LearnerEntity).Learner.(rnn.Block)
 	cost := seqtoseq.TotalCostBlock(b, 0, seqSamples, neuralnet.DotCost{})
 	return -cost / float64(totalLen)
 }

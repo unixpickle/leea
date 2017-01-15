@@ -6,6 +6,12 @@ import (
 	"sort"
 )
 
+// A FitEntity is an entity-fitness pair.
+type FitEntity struct {
+	Entity  Entity
+	Fitness float64
+}
+
 // A Selector chooses individuals based on their
 // fitnesses.
 type Selector interface {
@@ -17,11 +23,11 @@ type Selector interface {
 	//
 	// The scale indicates the value by which fitnesses
 	// should be divided before being used.
-	SetEntities(e []*Entity, scale float64)
+	SetEntities(e []*FitEntity, scale float64)
 
 	// Select selects the next entity.
 	// Selection is done without replacement.
-	Select() *Entity
+	Select() *FitEntity
 }
 
 // A RouletteWheel selects entities by randomly choosing
@@ -42,20 +48,20 @@ type RouletteWheel struct {
 	// exact fitnesses.
 	Temperature float64
 
-	entities []*Entity
+	entities []*FitEntity
 	scale    float64
 	total    float64
 }
 
 // SetEntities sets the entities for selection.
-func (r *RouletteWheel) SetEntities(e []*Entity, scale float64) {
-	r.entities = append([]*Entity{}, e...)
+func (r *RouletteWheel) SetEntities(e []*FitEntity, scale float64) {
+	r.entities = append([]*FitEntity{}, e...)
 	r.scale = scale
 	r.recomputeTotal()
 }
 
 // Select selects an entity and removes it from the pool.
-func (r *RouletteWheel) Select() *Entity {
+func (r *RouletteWheel) Select() *FitEntity {
 	num := rand.Float64() * r.total
 	for i, e := range r.entities {
 		num -= r.properFitness(e.Fitness)
@@ -96,18 +102,18 @@ func (r *RouletteWheel) recomputeTotal() {
 // A SortSelector selects entities in order of their
 // fitnesses.
 type SortSelector struct {
-	entities []*Entity
+	entities []*FitEntity
 }
 
 // SetEntities sets the entities for selection.
-func (s *SortSelector) SetEntities(e []*Entity, scale float64) {
+func (s *SortSelector) SetEntities(e []*FitEntity, scale float64) {
 	x := append(fitnessSorter{}, e...)
 	sort.Sort(x)
 	s.entities = x
 }
 
 // Select selects an entity and removes it from the pool.
-func (s *SortSelector) Select() *Entity {
+func (s *SortSelector) Select() *FitEntity {
 	if len(s.entities) == 0 {
 		panic("no entities to select")
 	}
@@ -128,19 +134,19 @@ type TournamentSelector struct {
 	// is to be chosen.
 	Prob float64
 
-	entities []*Entity
+	entities []*FitEntity
 }
 
 // SetEntities sets the entities for selection.
-func (t *TournamentSelector) SetEntities(e []*Entity, scale float64) {
-	t.entities = append([]*Entity{}, e...)
+func (t *TournamentSelector) SetEntities(e []*FitEntity, scale float64) {
+	t.entities = append([]*FitEntity{}, e...)
 }
 
 // Select selects an entity and removes it.
-func (t *TournamentSelector) Select() *Entity {
+func (t *TournamentSelector) Select() *FitEntity {
 	pool := t.tournamentPool()
 	prob := t.Prob
-	var chosen *Entity
+	var chosen *FitEntity
 	for i, entry := range pool {
 		if rand.Float64() < prob || i == len(pool)-1 {
 			chosen = entry
@@ -159,7 +165,7 @@ func (t *TournamentSelector) Select() *Entity {
 	return chosen
 }
 
-func (t *TournamentSelector) tournamentPool() []*Entity {
+func (t *TournamentSelector) tournamentPool() []*FitEntity {
 	var s fitnessSorter
 	if len(t.entities) < t.Size {
 		s = append(s, t.entities...)
@@ -173,7 +179,7 @@ func (t *TournamentSelector) tournamentPool() []*Entity {
 	return s
 }
 
-type fitnessSorter []*Entity
+type fitnessSorter []*FitEntity
 
 func (f fitnessSorter) Len() int {
 	return len(f)

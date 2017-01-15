@@ -10,23 +10,24 @@ import (
 	"github.com/unixpickle/weightnorm"
 )
 
-// A Crosser performs cross-over between learners.
+// A Crosser performs cross-over between Entity instances.
 //
 // The Cross method takes a keep parameter, which
 // indicates the fraction of its own parameters dest
 // should retain.
 type Crosser interface {
-	Cross(dest, source sgd.Learner, keep float64)
+	Cross(dest, source Entity, keep float64)
 }
 
-// A BasicCrosser combines learners by randomly selecting
-// individual vector components of the parameter vectors.
-type BasicCrosser struct{}
+// A LearnerCrosser combines entities which implement
+// sgd.Learner by randomly selecting individual vector
+// components of the parameter vectors.
+type LearnerCrosser struct{}
 
 // Cross performs component-wise cross-over.
-func (_ BasicCrosser) Cross(dest, source sgd.Learner, keep float64) {
-	sourceParams := source.Parameters()
-	for i, p := range dest.Parameters() {
+func (l LearnerCrosser) Cross(dest, source Entity, keep float64) {
+	sourceParams := source.(sgd.Learner).Parameters()
+	for i, p := range dest.(sgd.Learner).Parameters() {
 		for j, comp := range sourceParams[i].Vector {
 			if keep == 0 || rand.Float64() > keep {
 				p.Vector[j] = comp
@@ -35,17 +36,9 @@ func (_ BasicCrosser) Cross(dest, source sgd.Learner, keep float64) {
 	}
 }
 
-func basicCrosserIfNil(c Crosser) Crosser {
-	if c == nil {
-		return BasicCrosser{}
-	}
-	return c
-}
-
 // A NeuronalCrosser performs cross-over on entire neurons
-// at a time in a neuralnet.DenseLayer, using the Default
-// Crosser when it does not recognize the type of a
-// learner.
+// at a time in a neural network, using a default crosser
+// when it does not recognize the type of a learner.
 //
 // Specifically, a NeuronalCrosser knows how to deal with
 // the following types:
@@ -69,14 +62,19 @@ type NeuronalCrosser struct {
 
 // Cross performs cross-over, taking neural structures
 // into account whenever possible.
-func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
+// Both entities must be *LearnerEntity instances.
+func (n *NeuronalCrosser) Cross(dest, source Entity, keep float64) {
+	n.crossLearners(dest.(*LearnerEntity).Learner, source.(*LearnerEntity).Learner, keep)
+}
+
+func (n *NeuronalCrosser) crossLearners(dest, source sgd.Learner, keep float64) {
 	switch dest := dest.(type) {
 	case neuralnet.Network:
 		source := source.(neuralnet.Network)
 		for i, layer := range dest {
 			if l, ok := layer.(sgd.Learner); ok {
 				sourceLayer := source[i].(sgd.Learner)
-				n.Cross(l, sourceLayer, keep)
+				n.crossLearners(l, sourceLayer, keep)
 			}
 		}
 	case *neuralnet.DenseLayer:
@@ -104,20 +102,20 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 		source := source.(rnn.StackedBlock)
 		for i, x := range dest {
 			if l, ok := x.(sgd.Learner); ok {
-				n.Cross(l, source[i].(sgd.Learner), keep)
+				n.crossLearners(l, source[i].(sgd.Learner), keep)
 			}
 		}
 	case *rnn.StateOutBlock:
 		source := source.(*rnn.StateOutBlock).Block
 		if l, ok := dest.Block.(sgd.Learner); ok {
-			n.Cross(l, source.(sgd.Learner), keep)
+			n.crossLearners(l, source.(sgd.Learner), keep)
 		}
 	case *rnn.NetworkBlock:
 		source := source.(*rnn.NetworkBlock)
 		l1 := &variableLearner{Variable: dest.Parameters()[0]}
 		l2 := &variableLearner{Variable: source.Parameters()[0]}
-		n.Cross(l1, l2, keep)
-		n.Cross(dest.Network(), source.Network(), keep)
+		n.crossLearners(l1, l2, keep)
+		n.crossLearners(dest.Network(), source.Network(), keep)
 	case *weightnorm.Norm:
 		source := source.(*weightnorm.Norm)
 		for i, destWeights := range dest.Weights {
@@ -139,15 +137,19 @@ func (n *NeuronalCrosser) Cross(dest, source sgd.Learner, keep float64) {
 		for i, x := range dest.Parameters()[skip:] {
 			l1 := &variableLearner{Variable: x}
 			l2 := &variableLearner{Variable: sp[i]}
-			n.Cross(l1, l2, keep)
+			n.crossLearners(l1, l2, keep)
 		}
 	default:
-		n.fallback().Cross(dest, source, keep)
+		n.fallback().Cross(&LearnerEntity{Learner: dest},
+			&LearnerEntity{Learner: source}, keep)
 	}
 }
 
 func (n *NeuronalCrosser) fallback() Crosser {
-	return basicCrosserIfNil(n.Fallback)
+	if n.Fallback == nil {
+		return LearnerCrosser{}
+	}
+	return n.Fallback
 }
 
 type variableLearner struct {

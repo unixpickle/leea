@@ -5,7 +5,7 @@ import "testing"
 func TestRouletteWheel(t *testing.T) {
 	selector := &RouletteWheel{Temperature: 0.05}
 	for i := 0; i < 10; i++ {
-		selector.SetEntities([]*Entity{
+		selector.SetEntities([]*FitEntity{
 			{Fitness: 1},
 			{Fitness: 1.5},
 			{Fitness: 0.5},

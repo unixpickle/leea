@@ -20,13 +20,10 @@ const (
 type Trainer struct {
 	Evaluator  Evaluator
 	Samples    SampleSource
-	Population []*Entity
+	Population []*FitEntity
 	Selector   Selector
 	Mutator    Mutator
-
-	// Crosser is used to perform genetic cross-over.
-	// If this is nil, BasicCrosser is used.
-	Crosser Crosser
+	Crosser    Crosser
 
 	// DecaySchedule determines how much weight decay should
 	// be applied for a given generation.
@@ -105,7 +102,7 @@ func (t *Trainer) MeanFitness() float64 {
 }
 
 // BestEntity returns the entity with maximum fitness.
-func (t *Trainer) BestEntity() *Entity {
+func (t *Trainer) BestEntity() *FitEntity {
 	res := t.Population[0]
 	for _, e := range t.Population[1:] {
 		if e.Fitness > res.Fitness {
@@ -144,15 +141,18 @@ func (t *Trainer) generation() error {
 	}
 	for _, entity := range t.Population {
 		entity.Fitness *= t.Inheritance
-		entity.Fitness += t.Evaluator.Evaluate(entity, samples)
+		entity.Fitness += t.Evaluator.Evaluate(entity.Entity, samples)
 	}
 	t.reorderEntities()
 
 	n := t.survivorCount()
 
-	// Over-write the dead population with the survivors.
+	// Overwrite the dead population with the survivors.
 	for i := n; i < len(t.Population); i++ {
-		t.Population[i].Set(t.Population[rand.Intn(n)])
+		source := t.Population[rand.Intn(n)]
+		dest := t.Population[i]
+		dest.Entity.Set(source.Entity)
+		dest.Fitness = source.Fitness
 	}
 
 	ordering := rand.Perm(len(t.Population))
@@ -167,7 +167,7 @@ func (t *Trainer) generation() error {
 		e := t.Population[j]
 		e1 := t.Population[otherIdx]
 		e.Fitness = keepRatio*e.Fitness + (1-keepRatio)*e1.Fitness
-		t.crosser().Cross(e.Learner, e1.Learner, keepRatio)
+		t.Crosser.Cross(e.Entity, e1.Entity, keepRatio)
 	}
 
 	t.mutateAll()
@@ -182,7 +182,7 @@ func (t *Trainer) mutateAll() {
 		decay = t.DecaySchedule.ValueAtTime(t.Generation)
 	}
 
-	entities := make(chan *Entity, len(t.Population)-t.Elitism)
+	entities := make(chan *FitEntity, len(t.Population)-t.Elitism)
 	for _, x := range t.Population[t.Elitism:] {
 		entities <- x
 	}
@@ -198,9 +198,9 @@ func (t *Trainer) mutateAll() {
 			gen := rand.NewSource(rand.Int63())
 			for e := range entities {
 				if decay != 0 {
-					e.Decay(decay)
+					e.Entity.Decay(decay)
 				}
-				t.Mutator.Mutate(t.Generation, e.Learner, gen)
+				t.Mutator.Mutate(t.Generation, e.Entity, gen)
 			}
 		}()
 	}
@@ -227,8 +227,4 @@ func (t *Trainer) survivorCount() int {
 		return 1
 	}
 	return numSelect
-}
-
-func (t *Trainer) crosser() Crosser {
-	return basicCrosserIfNil(t.Crosser)
 }
