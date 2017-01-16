@@ -42,6 +42,6 @@ func Cost(r *RNN, s sgd.SampleSet) anyvec.Numeric {
 		sum.AddScaler(expected.Dot(actual))
 	}
 
-	sum.Scale(r.Creator().MakeNumeric(1.0 / float64(n*steps)))
+	sum.Scale(r.Creator().MakeNumeric(-1 / float64(n*steps)))
 	return anyvec.Sum(sum)
 }

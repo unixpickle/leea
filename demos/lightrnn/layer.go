@@ -74,11 +74,7 @@ func DeserializeLayer(d []byte) (*Layer, error) {
 // Start repeats the initial state the given number of
 // times.
 func (l *Layer) Start(n int) anyvec.Vector {
-	var a []anyvec.Vector
-	for i := 0; i < n; i++ {
-		a = append(a, l.InitState)
-	}
-	return l.InitState.Creator().Concat(a...)
+	return repeatVec(l.InitState, n)
 }
 
 // Apply applies the layer to a batch of inputs.
@@ -89,16 +85,16 @@ func (l *Layer) Apply(states, inputs anyvec.Vector) {
 	zero := states.Creator().MakeNumeric(0)
 
 	trans := &anyvec.Matrix{Data: l.StateTrans, Rows: l.StateSize, Cols: l.StateSize}
-	data := &anyvec.Matrix{Data: states.Copy(), Rows: l.StateSize, Cols: n}
-	out := &anyvec.Matrix{Data: states, Rows: l.StateSize, Cols: n}
+	data := &anyvec.Matrix{Data: states.Copy(), Rows: n, Cols: l.StateSize}
+	out := &anyvec.Matrix{Data: states, Rows: n, Cols: l.StateSize}
 
-	out.Product(false, false, one, trans, data, zero)
+	out.Product(false, true, one, data, trans, zero)
 
 	trans = &anyvec.Matrix{Data: l.InTrans, Rows: l.StateSize, Cols: l.InSize}
-	data = &anyvec.Matrix{Data: inputs, Rows: l.InSize, Cols: n}
-	out.Product(false, false, one, trans, data, one)
+	data = &anyvec.Matrix{Data: inputs, Rows: n, Cols: l.InSize}
+	out.Product(false, true, one, data, trans, one)
 
-	states.Add(l.Biases)
+	states.Add(repeatVec(l.Biases, n))
 	l.Activation.Apply(states, l.StateSize)
 }
 
@@ -168,10 +164,11 @@ func (o *OutLayer) Apply(in anyvec.Vector) anyvec.Vector {
 	zero := in.Creator().MakeNumeric(0)
 
 	trans := &anyvec.Matrix{Data: o.Weights, Rows: o.OutSize, Cols: o.InSize}
-	data := &anyvec.Matrix{Data: in, Rows: o.InSize, Cols: n}
-	out := &anyvec.Matrix{Data: outVec, Rows: o.OutSize, Cols: n}
+	data := &anyvec.Matrix{Data: in, Rows: n, Cols: o.InSize}
+	out := &anyvec.Matrix{Data: outVec, Rows: n, Cols: o.OutSize}
 
-	out.Product(false, false, one, trans, data, zero)
+	out.Product(false, true, one, data, trans, zero)
+	outVec.Add(repeatVec(o.Biases, n))
 	o.Activation.Apply(outVec, o.OutSize)
 
 	return outVec
@@ -201,4 +198,12 @@ func randomMatrix(c anyvec.Creator, inCount, outCount int) anyvec.Vector {
 		data[i] = rand.NormFloat64() * stddev
 	}
 	return c.MakeVectorData(c.MakeNumericList(data))
+}
+
+func repeatVec(v anyvec.Vector, n int) anyvec.Vector {
+	var a []anyvec.Vector
+	for i := 0; i < n; i++ {
+		a = append(a, v)
+	}
+	return v.Creator().Concat(a...)
 }
