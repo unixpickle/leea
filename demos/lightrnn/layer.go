@@ -2,7 +2,6 @@ package lightrnn
 
 import (
 	"math"
-	"math/rand"
 
 	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/anyvec/anyvecsave"
@@ -192,12 +191,10 @@ func (o *OutLayer) Serialize() ([]byte, error) {
 }
 
 func randomMatrix(c anyvec.Creator, inCount, outCount int) anyvec.Vector {
-	stddev := 1 / math.Sqrt(float64(inCount))
-	data := make([]float64, inCount*outCount)
-	for i := range data {
-		data[i] = rand.NormFloat64() * stddev
-	}
-	return c.MakeVectorData(c.MakeNumericList(data))
+	data := c.MakeVector(inCount * outCount)
+	anyvec.Rand(data, anyvec.Normal, nil)
+	data.Scale(c.MakeNumeric(1 / math.Sqrt(float64(inCount))))
+	return data
 }
 
 func repeatVec(v anyvec.Vector, n int) anyvec.Vector {

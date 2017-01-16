@@ -48,6 +48,16 @@ func (r *RNN) Creator() anyvec.Creator {
 	return r.Output.Biases.Creator()
 }
 
+// Parameters returns all of the vectors that control the
+// RNN's behavior.
+func (r *RNN) Parameters() []anyvec.Vector {
+	res := []anyvec.Vector{r.Output.Weights, r.Output.Biases}
+	for _, x := range r.Hidden {
+		res = append(res, x.InTrans, x.StateTrans, x.InitState, x.Biases)
+	}
+	return res
+}
+
 // Start returns the initial state for a batch size of n.
 func (r *RNN) Start(n int) State {
 	var res State

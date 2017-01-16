@@ -1,11 +1,10 @@
 package main
 
 import (
-	"math"
 	"math/rand"
 
-	"github.com/unixpickle/num-analysis/linalg"
-	"github.com/unixpickle/weakai/rnn"
+	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/leea/demos/lightrnn"
 )
 
 const (
@@ -14,12 +13,13 @@ const (
 	MaxReadable = 0xfe
 )
 
-func GenerateSample(b rnn.StackedBlock) string {
+func GenerateSample(r *lightrnn.RNN) string {
 	var res []byte
-	r := &rnn.Runner{Block: b}
+	state := r.Start(1)
 	lastChar := oneHot(0)
 	for i := 0; i < MaxGenLen; i++ {
-		next := r.StepTime(lastChar)
+		numList := r.Creator().MakeNumericList(lastChar)
+		next := r.Apply(state, r.Creator().MakeVectorData(numList))
 		chr := pick(next)
 		if chr == 0 {
 			break
@@ -33,10 +33,12 @@ func GenerateSample(b rnn.StackedBlock) string {
 	return string(res)
 }
 
-func pick(vec linalg.Vector) int {
+func pick(vec anyvec.Vector) int {
+	anyvec.Exp(vec)
+	data := vec.Data().([]float32)
 	n := rand.Float64()
-	for i, x := range vec {
-		n -= math.Exp(x)
+	for i, x := range data {
+		n -= float64(x)
 		if n < 0 {
 			return i
 		}

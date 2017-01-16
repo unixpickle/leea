@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/leea"
-	"github.com/unixpickle/weakai/neuralnet"
-	"github.com/unixpickle/weakai/rnn"
+	"github.com/unixpickle/leea/demos/lightrnn"
 )
 
 const (
@@ -19,7 +19,6 @@ const (
 
 func main() {
 	var mutInit, mutDecay, mutBaseline float64
-	var crossInit, crossDecay, crossBaseline float64
 	var decayTarget float64
 	var inheritance float64
 	var survivalRatio float64
@@ -30,10 +29,6 @@ func main() {
 	flag.Float64Var(&mutInit, "mut", 1e-2, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.999, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
-
-	flag.Float64Var(&crossInit, "cross", 0.5, "cross-over rate")
-	flag.Float64Var(&crossDecay, "crossdecay", 1, "cross-over decay rate")
-	flag.Float64Var(&crossBaseline, "crossbias", 0, "cross-over bias")
 
 	flag.Float64Var(&decayTarget, "decay", 0.05, "decay target")
 
@@ -73,19 +68,16 @@ func main() {
 			BatchSize: batchSize,
 		},
 		Selector: &leea.SortSelector{},
-		Crosser:  &leea.NeuronalCrosser{},
-		Mutator: &leea.AddMutator{
-			Sampler: &leea.NormSampler{},
-			Stddev:  mutSchedule,
+		Crosser:  &Crosser{},
+		Mutator: &Mutator{
+			Stddev: mutSchedule,
 		},
 		DecaySchedule: &leea.DecaySchedule{
 			Mut:    mutSchedule,
 			Target: decayTarget,
 		},
 		CrossOverSchedule: &leea.ExpSchedule{
-			Init:      crossInit,
-			DecayRate: crossDecay,
-			Baseline:  crossBaseline,
+			Baseline: 0.5,
 		},
 		Inheritance:   inheritance,
 		SurvivalRatio: survivalRatio,
@@ -98,35 +90,25 @@ func main() {
 		log.Println("Creating population...")
 	}
 	for i := 0; i < population; i++ {
-		var net rnn.StackedBlock
+		var net *lightrnn.RNN
 		if err == nil {
-			net, err = rnn.DeserializeStackedBlock(netData)
+			net, err = lightrnn.DeserializeRNN(netData)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Deserialize network:", err)
 				os.Exit(1)
 			}
 		} else {
-			net = rnn.StackedBlock{
-				&rnn.StateOutBlock{
-					Block: rnn.NewNetworkBlock(neuralnet.Network{
-						neuralnet.NewDenseLayer(StateSize+0x100, StateSize),
-						&neuralnet.HyperbolicTangent{},
-					}, StateSize),
+			c := anyvec32.CurrentCreator()
+			net = &lightrnn.RNN{
+				Hidden: []*lightrnn.Layer{
+					lightrnn.NewLayer(c, 0x100, StateSize, lightrnn.Tanh),
+					lightrnn.NewLayer(c, StateSize, StateSize, lightrnn.Tanh),
 				},
-				&rnn.StateOutBlock{
-					Block: rnn.NewNetworkBlock(neuralnet.Network{
-						neuralnet.NewDenseLayer(StateSize*2, StateSize),
-						&neuralnet.HyperbolicTangent{},
-					}, StateSize),
-				},
-				rnn.NewNetworkBlock(neuralnet.Network{
-					neuralnet.NewDenseLayer(StateSize, 0x100),
-					&neuralnet.LogSoftmaxLayer{},
-				}, 0),
+				Output: lightrnn.NewOutLayer(c, StateSize, 0x100, lightrnn.LogSoftmax),
 			}
 		}
 		trainer.Population = append(trainer.Population, &leea.FitEntity{
-			Entity: &leea.LearnerEntity{Learner: net},
+			Entity: &Entity{RNN: net},
 		})
 	}
 
@@ -138,7 +120,7 @@ func main() {
 	})
 
 	log.Println("Saving fittest network...")
-	net := trainer.BestEntity().Entity.(*leea.LearnerEntity).Learner.(rnn.StackedBlock)
+	net := trainer.BestEntity().Entity.(*Entity).RNN
 	netData, err = net.Serialize()
 	if err != nil {
 		log.Println("Serialize failed:", err)
