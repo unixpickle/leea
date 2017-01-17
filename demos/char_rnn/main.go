@@ -25,12 +25,17 @@ func main() {
 	var population int
 	var batchSize int
 	var dataFile, outFile string
+	var tournamentSize int
+	var tournamentProb float64
 
 	flag.Float64Var(&mutInit, "mut", 1e-2, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.999, "mutation decay rate")
 	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
 
 	flag.Float64Var(&decayTarget, "decay", 0.05, "decay target")
+
+	flag.IntVar(&tournamentSize, "tournsize", 5, "tournament size")
+	flag.Float64Var(&tournamentProb, "tournprob", 1, "tournament probability")
 
 	flag.Float64Var(&inheritance, "inherit", 0.95, "inheritance rate")
 	flag.Float64Var(&survivalRatio, "survival", 0.2, "survival ratio")
@@ -67,8 +72,11 @@ func main() {
 			Samples:   samples,
 			BatchSize: batchSize,
 		},
-		Selector: &leea.SortSelector{},
-		Crosser:  &Crosser{},
+		Selector: &leea.TournamentSelector{
+			Size: tournamentSize,
+			Prob: tournamentProb,
+		},
+		Crosser: &Crosser{},
 		Mutator: &Mutator{
 			Stddev: mutSchedule,
 		},
