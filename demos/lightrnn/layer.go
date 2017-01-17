@@ -73,7 +73,9 @@ func DeserializeLayer(d []byte) (*Layer, error) {
 // Start repeats the initial state the given number of
 // times.
 func (l *Layer) Start(n int) anyvec.Vector {
-	return repeatVec(l.InitState, n)
+	res := l.InitState.Creator().MakeVector(l.InitState.Len() * n)
+	anyvec.AddRepeated(res, l.InitState)
+	return res
 }
 
 // Apply applies the layer to a batch of inputs.
@@ -93,7 +95,7 @@ func (l *Layer) Apply(states, inputs anyvec.Vector) {
 	data = &anyvec.Matrix{Data: inputs, Rows: n, Cols: l.InSize}
 	out.Product(false, true, one, data, trans, one)
 
-	states.Add(repeatVec(l.Biases, n))
+	anyvec.AddRepeated(states, l.Biases)
 	l.Activation.Apply(states, l.StateSize)
 }
 
@@ -167,7 +169,7 @@ func (o *OutLayer) Apply(in anyvec.Vector) anyvec.Vector {
 	out := &anyvec.Matrix{Data: outVec, Rows: n, Cols: o.OutSize}
 
 	out.Product(false, true, one, data, trans, zero)
-	outVec.Add(repeatVec(o.Biases, n))
+	anyvec.AddRepeated(outVec, o.Biases)
 	o.Activation.Apply(outVec, o.OutSize)
 
 	return outVec
@@ -195,12 +197,4 @@ func randomMatrix(c anyvec.Creator, inCount, outCount int) anyvec.Vector {
 	anyvec.Rand(data, anyvec.Normal, nil)
 	data.Scale(c.MakeNumeric(1 / math.Sqrt(float64(inCount))))
 	return data
-}
-
-func repeatVec(v anyvec.Vector, n int) anyvec.Vector {
-	var a []anyvec.Vector
-	for i := 0; i < n; i++ {
-		a = append(a, v)
-	}
-	return v.Creator().Concat(a...)
 }
