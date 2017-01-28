@@ -3,20 +3,28 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"os"
 	"time"
 
-	"github.com/unixpickle/autofunc"
+	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/anynet/anyconv"
+	"github.com/unixpickle/anynet/anyff"
+	"github.com/unixpickle/anyvec"
+	"github.com/unixpickle/anyvec/anyvec32"
 	"github.com/unixpickle/leea"
 	"github.com/unixpickle/mnist"
-	"github.com/unixpickle/weakai/neuralnet"
+	"github.com/unixpickle/serializer"
 )
+
+var Creator anyvec.Creator
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
+
+	Creator = anyvec32.CurrentCreator()
 
 	var mutInit, mutDecay, mutBaseline float64
 	var crossInit, crossDecay, crossBaseline float64
@@ -60,9 +68,10 @@ func main() {
 
 	log.Println("Initializing trainer...")
 	trainer := &leea.Trainer{
-		Evaluator: &leea.NegCost{Cost: neuralnet.DotCost{}},
+		Evaluator: &leea.NegCost{Cost: anynet.DotCost{}},
+		Fetcher:   &anyff.Trainer{},
 		Samples: &leea.CycleSampleSource{
-			Samples:   mnist.LoadTrainingDataSet().SGDSampleSet(),
+			Samples:   mnist.LoadTrainingDataSet().AnyNetSamples(Creator),
 			BatchSize: batchSize,
 		},
 		Selector: &leea.TournamentSelector{
@@ -85,7 +94,6 @@ func main() {
 		DecayRate: mutDecay,
 		Baseline:  mutBaseline,
 	}
-	sampler := &leea.NormSampler{}
 	if setMutations {
 		log.Println("Using set mutations...")
 		stddevs := []float64{0.10, 0.10, 0.10, 0.10}
@@ -95,12 +103,10 @@ func main() {
 		trainer.Mutator = &leea.SetMutator{
 			Stddevs:  stddevs,
 			Fraction: mutSchedule,
-			Sampler:  sampler,
 		}
 	} else {
 		trainer.Mutator = &leea.AddMutator{
-			Stddev:  mutSchedule,
-			Sampler: sampler,
+			Stddev: mutSchedule,
 		}
 		trainer.DecaySchedule = &leea.DecaySchedule{
 			Mut:    mutSchedule,
@@ -119,14 +125,9 @@ func main() {
 	})
 
 	log.Println("Saving fittest network...")
-	net := trainer.BestEntity().Entity.(*leea.LearnerEntity).Learner.(neuralnet.Network)
-	netData, err := net.Serialize()
-	if err != nil {
-		log.Println("Serialize failed:", err)
-	} else {
-		if err := ioutil.WriteFile(outFile, netData, 0755); err != nil {
-			log.Println("Save failed:", err)
-		}
+	net := trainer.BestEntity().Entity.(*leea.NetEntity).Parameterizer.(anynet.Net)
+	if err := serializer.SaveAny(outFile, net); err != nil {
+		log.Println("Save failed:", err)
 	}
 
 	crossValidate(net)
@@ -135,48 +136,62 @@ func main() {
 func populate(conv bool, outFile string, pop int) []*leea.FitEntity {
 	var res []*leea.FitEntity
 
-	netData, err := ioutil.ReadFile(outFile)
+	var initNet anynet.Net
+	err := serializer.LoadAny(outFile, &initNet)
 	if err == nil {
 		log.Println("Using existing network for population...")
 	} else {
 		log.Println("Creating population...")
 	}
 	for i := 0; i < pop; i++ {
-		var net neuralnet.Network
+		var net anynet.Layer
 		if err == nil {
-			net, err = neuralnet.DeserializeNetwork(netData)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "Deserialize network:", err)
-				os.Exit(1)
-			}
+			data, _ := initNet.Serialize()
+			net, _ = anynet.DeserializeNet(data)
 		} else {
 			if conv {
-				net = createConvNet()
+				net, err = anyconv.FromMarkup(Creator, convnetDescription)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Create convnet:", err)
+					os.Exit(1)
+				}
 			} else {
-				net = neuralnet.Network{
-					neuralnet.NewDenseLayer(28*28, 300),
-					&neuralnet.HyperbolicTangent{},
-					neuralnet.NewDenseLayer(300, 10),
-					&neuralnet.LogSoftmaxLayer{},
+				net = anynet.Net{
+					anynet.NewFC(Creator, 28*28, 300),
+					anynet.Tanh,
+					anynet.NewFC(Creator, 300, 10),
+					anynet.LogSoftmax,
 				}
 			}
 		}
 		res = append(res, &leea.FitEntity{
-			Entity: &leea.LearnerEntity{Learner: net},
+			Entity: &leea.NetEntity{Parameterizer: net.(anynet.Parameterizer)},
 		})
 	}
 	return res
 }
 
-func crossValidate(net neuralnet.Network) {
+func crossValidate(net anynet.Net) {
 	log.Println("Cross-validating...")
 	classif := func(s []float64) int {
-		out := net.Apply(&autofunc.Variable{Vector: s}).Output()
-		_, res := out.Max()
-		return res
+		vec := Creator.MakeVectorData(Creator.MakeNumericList(s))
+		out := net.Apply(anydiff.NewConst(vec), 1).Output()
+		return anyvec.MaxIndex(out)
 	}
-	total := mnist.LoadTestingDataSet().NumCorrect(classif)
+	testSet := mnist.LoadTestingDataSet()
+	total := testSet.NumCorrect(classif)
 	log.Println("Total:", total)
-	hist := mnist.LoadTestingDataSet().CorrectnessHistogram(classif)
+	hist := testSet.CorrectnessHistogram(classif)
 	log.Println(hist)
 }
+
+const convnetDescription = `
+Input(w=28, h=28, d=1)
+Conv(w=3, h=3, n=5)
+MaxPool(w=3, h=3)
+ReLU
+FC(out=300)
+ReLU
+FC(out=10)
+Softmax
+`
