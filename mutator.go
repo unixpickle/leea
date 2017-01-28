@@ -1,10 +1,10 @@
 package leea
 
 import (
-	"math"
 	"math/rand"
 
-	"github.com/unixpickle/sgd"
+	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/anyvec"
 )
 
 // A Mutator applies mutations to Entity instances.
@@ -13,27 +13,26 @@ import (
 // may use for random number generation, allowing for
 // efficient parallel mutations.
 type Mutator interface {
-	Mutate(t int, e Entity, s rand.Source)
+	Mutate(t int, e Entity, r rand.Source)
 }
 
 // An AddMutator adds random noise to the parameters of
-// entities which implement sgd.Learner.
+// entities which implement anynet.Parameterizer.
 type AddMutator struct {
-	Stddev  Schedule
-	Sampler NumSampler
+	Stddev Schedule
 }
 
 // Mutate adds Gaussian mutations to the parameters.
 // The e argument must be an sgd.Learner.
 func (n *AddMutator) Mutate(t int, e Entity, s rand.Source) {
-	l := e.(sgd.Learner)
+	parameterizer := e.(anynet.Parameterizer)
 	r := rand.New(s)
-	sampler := n.Sampler.New(r)
 	d := n.Stddev.ValueAtTime(t)
-	for _, p := range l.Parameters() {
-		for i, comp := range p.Vector {
-			p.Vector[i] = comp + sampler.Sample()*d
-		}
+	for _, p := range parameterizer.Parameters() {
+		randVec := p.Vector.Creator().MakeVector(p.Vector.Len())
+		anyvec.Rand(randVec, anyvec.Normal, r)
+		randVec.Scale(randVec.Creator().MakeNumeric(d))
+		p.Vector.Add(randVec)
 	}
 }
 
@@ -46,89 +45,27 @@ type SetMutator struct {
 	// Stddevs must specify the standard deviation for every
 	// parameter.
 	Stddevs []float64
-
-	// Sampler provides random numbers.
-	Sampler NumSampler
 }
 
 // Mutate replaces some values with randomly-sampled ones.
 // The e argument must be an sgd.Learner.
 func (s *SetMutator) Mutate(t int, e Entity, source rand.Source) {
-	l := e.(sgd.Learner)
+	parameterizer := e.(anynet.Parameterizer)
 	r := rand.New(source)
-	sampler := s.Sampler.New(r)
 	frac := s.Fraction.ValueAtTime(t)
-	for pIdx, p := range l.Parameters() {
+	for pIdx, p := range parameterizer.Parameters() {
 		stddev := s.Stddevs[pIdx]
-		for i := range p.Vector {
-			if r.Float64() < frac {
-				p.Vector[i] = sampler.Sample() * stddev
-			}
-		}
+
+		randVec := p.Vector.Creator().MakeVector(p.Vector.Len())
+		anyvec.Rand(randVec, anyvec.Normal, r)
+		randVec.Scale(randVec.Creator().MakeNumeric(stddev))
+		randVec.Sub(p.Vector)
+
+		mask := p.Vector.Creator().MakeVector(p.Vector.Len())
+		anyvec.Rand(mask, anyvec.Uniform, r)
+		anyvec.GreaterThan(mask, mask.Creator().MakeNumeric(frac))
+		randVec.Mul(mask)
+
+		p.Vector.Add(randVec)
 	}
-}
-
-// A NumSampler samples random numbers with a variance of
-// 1 and a standard deviation of 0.
-type NumSampler interface {
-	// New creates a new NumSampler with the same behavior as
-	// this one, but with a different source.
-	New(r *rand.Rand) NumSampler
-
-	// Sample samples a random number.
-	Sample() float64
-}
-
-// A NormSampler samples from a normal distribution.
-//
-// The zero value of NormSampler will sample using the
-// default rand source.
-type NormSampler struct {
-	r *rand.Rand
-}
-
-// New creates a new NormSampler.
-func (n *NormSampler) New(r *rand.Rand) NumSampler {
-	return &NormSampler{r: r}
-}
-
-// Sample samples from the distribution.
-func (n *NormSampler) Sample() float64 {
-	if n.r == nil {
-		return rand.NormFloat64()
-	} else {
-		return n.r.NormFloat64()
-	}
-}
-
-// A LogisticSampler samples from the logistic
-// distribution, which is described by treating the
-// logistic sigmoid as a cumulative distribution function.
-//
-// The zero value of LogisticSampler will sample using the
-// default rand source.
-type LogisticSampler struct {
-	r *rand.Rand
-}
-
-// New creates a new LogisticSampler.
-func (l *LogisticSampler) New(r *rand.Rand) NumSampler {
-	return &LogisticSampler{r: r}
-}
-
-// Sample samples from the distribution.
-func (l *LogisticSampler) Sample() float64 {
-	x := -1.0
-
-	// Loop deals with a very unlikely edge case.
-	for x <= -1.0 {
-		if l.r != nil {
-			x = l.r.Float64()*2 - 1
-		} else {
-			x = rand.Float64()*2 - 1
-		}
-	}
-
-	val := math.Sqrt(3) / math.Pi * math.Log((1+x)/(1-x))
-	return val
 }

@@ -1,6 +1,6 @@
 package leea
 
-import "github.com/unixpickle/sgd"
+import "github.com/unixpickle/anynet"
 
 // An Entity has a set of mutable parameters.
 type Entity interface {
@@ -12,25 +12,23 @@ type Entity interface {
 	Set(e1 Entity)
 }
 
-// A LearnerEntity wraps an sgd.Learner and implements the
-// entity facilities.
-type LearnerEntity struct {
-	sgd.Learner
+// A NetEntity wraps an anynet.Parameterizer and
+// implements the entity facilities.
+type NetEntity struct {
+	anynet.Parameterizer
 }
 
 // Decay applies weight decay.
-func (l *LearnerEntity) Decay(r float64) {
-	for _, p := range l.Learner.Parameters() {
-		for i, x := range p.Vector {
-			p.Vector[i] -= x * r
-		}
+func (n *NetEntity) Decay(r float64) {
+	for _, p := range n.Parameterizer.Parameters() {
+		p.Vector.Scale(p.Vector.Creator().MakeNumeric(1 - r))
 	}
 }
 
 // Set copies the parameters from e1.
-func (l *LearnerEntity) Set(e1 Entity) {
-	p1 := e1.(*LearnerEntity).Learner.Parameters()
-	for i, x := range l.Learner.Parameters() {
-		copy(x.Vector, p1[i].Vector)
+func (n *NetEntity) Set(e1 Entity) {
+	p1 := e1.(*NetEntity).Parameterizer.Parameters()
+	for i, x := range n.Parameterizer.Parameters() {
+		x.Vector.Set(p1[i].Vector)
 	}
 }

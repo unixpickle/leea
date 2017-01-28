@@ -9,6 +9,9 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+
+	"github.com/unixpickle/anynet/anysgd"
+	"github.com/unixpickle/rip"
 )
 
 const (
@@ -20,6 +23,7 @@ const (
 type Trainer struct {
 	Evaluator  Evaluator
 	Samples    SampleSource
+	Fetcher    anysgd.Fetcher
 	Population []*FitEntity
 	Selector   Selector
 	Mutator    Mutator
@@ -112,22 +116,27 @@ func (t *Trainer) BestEntity() *FitEntity {
 	return res
 }
 
-// Evolve performs evolution and calls f before each
-// generation.
-// If f returns false, or if the user sends a kill signal,
-// Evolve will return.
-// It returns an error if the SampleSource fails.
+// Evolve performs evolution.
+// Before every generation, f is called.
+// Evolution stops when f returns false or when the user
+// sends an interrupt signal.
+// This returns an error if fetching samples fails.
 func (t *Trainer) Evolve(f func() bool) error {
-	var err error
-	loopUntilKilled(func() bool {
-		if err != nil {
-			return false
+	killSig := rip.NewRIP()
+
+	for !killSig.Done() {
+		if !f() {
+			return nil
 		}
-		return f()
-	}, func() {
-		err = t.generation()
-	})
-	return err
+		if killSig.Done() {
+			return nil
+		}
+		if err := t.generation(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (t *Trainer) generation() error {
@@ -139,9 +148,14 @@ func (t *Trainer) generation() error {
 	if err != nil {
 		return err
 	}
+	batch, err := t.Fetcher.Fetch(samples)
+	if err != nil {
+		return err
+	}
+
 	for _, entity := range t.Population {
 		entity.Fitness *= t.Inheritance
-		entity.Fitness += t.Evaluator.Evaluate(entity.Entity, samples)
+		entity.Fitness += t.Evaluator.Evaluate(entity.Entity, batch)
 	}
 	t.reorderEntities()
 
