@@ -56,8 +56,8 @@ func (n *NeuronalCrosser) cross(dest, source anynet.Parameterizer, keep float64)
 			dest.Biases.Vector, source.Biases.Vector)
 	case *anyconv.Conv:
 		source := source.(*anyconv.Conv)
-		filterSize := dest.FilterWidth * dest.FilterHeight * dest.InputDepth
-		n.crossRows(keep, filterSize, dest.Filters.Vector, source.Filters.Vector,
+		count := dest.Biases.Vector.Len()
+		n.crossRows(keep, count, dest.Filters.Vector, source.Filters.Vector,
 			dest.Biases.Vector, source.Biases.Vector)
 	case anyrnn.Stack:
 		source := source.(anyrnn.Stack)

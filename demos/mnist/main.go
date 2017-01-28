@@ -144,17 +144,18 @@ func populate(conv bool, outFile string, pop int) []*leea.FitEntity {
 		log.Println("Creating population...")
 	}
 	for i := 0; i < pop; i++ {
-		var net anynet.Layer
+		var net anynet.Net
 		if err == nil {
 			data, _ := initNet.Serialize()
 			net, _ = anynet.DeserializeNet(data)
 		} else {
 			if conv {
-				net, err = anyconv.FromMarkup(Creator, convnetDescription)
+				conv, err := anyconv.FromMarkup(Creator, convnetDescription)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, "Create convnet:", err)
 					os.Exit(1)
 				}
+				net = conv.(anynet.Net)
 			} else {
 				net = anynet.Net{
 					anynet.NewFC(Creator, 28*28, 300),
@@ -165,7 +166,7 @@ func populate(conv bool, outFile string, pop int) []*leea.FitEntity {
 			}
 		}
 		res = append(res, &leea.FitEntity{
-			Entity: &leea.NetEntity{Parameterizer: net.(anynet.Parameterizer)},
+			Entity: &leea.NetEntity{Parameterizer: net},
 		})
 	}
 	return res
