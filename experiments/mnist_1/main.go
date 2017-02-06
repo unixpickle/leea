@@ -17,8 +17,10 @@ import (
 var Creator anyvec.Creator
 
 const (
-	BatchSize  = 300
-	Population = 512
+	BatchSize1         = 50
+	BatchSize2         = 300
+	BatchIncreaseIters = 400
+	Population         = 512
 )
 
 func main() {
@@ -32,13 +34,14 @@ func main() {
 		DecayRate: 0.999,
 		Baseline:  0.001,
 	}
+	cycler := &leea.CycleSampleSource{
+		Samples:   mnist.LoadTrainingDataSet().AnyNetSamples(Creator),
+		BatchSize: BatchSize1,
+	}
 	trainer := &leea.Trainer{
-		Evaluator: &leea.NegCost{Cost: anynet.DotCost{}},
-		Fetcher:   &anyff.Trainer{},
-		Samples: &leea.CycleSampleSource{
-			Samples:   mnist.LoadTrainingDataSet().AnyNetSamples(Creator),
-			BatchSize: 300,
-		},
+		Evaluator:         &leea.NegCost{Cost: anynet.DotCost{}},
+		Fetcher:           &anyff.Trainer{},
+		Samples:           cycler,
 		Selector:          &leea.TournamentSelector{Size: 5, Prob: 1},
 		Crosser:           &leea.NeuronalCrosser{},
 		CrossOverSchedule: &leea.ExpSchedule{Baseline: 0.5},
@@ -55,14 +58,19 @@ func main() {
 	trainer.Population = populate(Population)
 
 	log.Println("Training...")
+	var numSamples int
 	trainer.Evolve(func() bool {
 		log.Printf("generation %d: max_fit=%f mean_fit=%f", trainer.Generation,
 			trainer.MaxFitness()/trainer.FitnessScale(),
 			trainer.MeanFitness()/trainer.FitnessScale())
+		numSamples += cycler.BatchSize
+		if trainer.Generation == BatchIncreaseIters {
+			log.Println("Increasing batch size to", BatchSize2)
+			cycler.BatchSize = BatchSize2
+		}
 		if trainer.Generation%10 == 0 {
 			entity := trainer.BestEntity().Entity.(*leea.NetEntity)
 			accuracy := crossValidate(entity.Parameterizer.(anynet.Net))
-			numSamples := trainer.Generation * BatchSize
 			fmt.Printf("%f,%f,%f\n", float64(numSamples)/60000, accuracy,
 				trainer.MaxFitness()/trainer.FitnessScale())
 		}
@@ -76,9 +84,9 @@ func populate(pop int) []*leea.FitEntity {
 	log.Println("Populating...")
 	for i := 0; i < pop; i++ {
 		net := anynet.Net{
-			anynet.NewFC(Creator, 28*28, 300),
+			anynet.NewFCZero(Creator, 28*28, 300),
 			anynet.Tanh,
-			anynet.NewFC(Creator, 300, 10),
+			anynet.NewFCZero(Creator, 300, 10),
 			anynet.LogSoftmax,
 		}
 		res = append(res, &leea.FitEntity{
