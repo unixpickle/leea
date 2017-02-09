@@ -3,24 +3,29 @@ package main
 import (
 	"math/rand"
 
+	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/anynet/anyrnn"
 	"github.com/unixpickle/anyvec"
-	"github.com/unixpickle/leea/demos/lightrnn"
 )
 
 const (
-	MaxGenLen   = 300
+	MaxGenLen   = 100
 	MinReadable = 0x20
 	MaxReadable = 0xfe
+
+	InputScale = 0x10
 )
 
-func GenerateSample(r *lightrnn.RNN) string {
+func GenerateSample(b anyrnn.Block) string {
 	var res []byte
-	state := r.Start(1)
+	c := b.(anynet.Parameterizer).Parameters()[0].Vector.Creator()
+	state := b.Start(1)
 	lastChar := oneHot(0)
 	for i := 0; i < MaxGenLen; i++ {
-		numList := r.Creator().MakeNumericList(lastChar)
-		next := r.Apply(state, r.Creator().MakeVectorData(numList))
-		chr := pick(next)
+		numList := c.MakeNumericList(lastChar)
+		next := b.Step(state, c.MakeVectorData(numList))
+		chr := pick(next.Output())
+		state = next.State()
 		if chr == 0 {
 			break
 		}
@@ -34,6 +39,7 @@ func GenerateSample(r *lightrnn.RNN) string {
 }
 
 func pick(vec anyvec.Vector) int {
+	vec = vec.Copy()
 	anyvec.Exp(vec)
 	data := vec.Data().([]float32)
 	n := rand.Float64()
@@ -44,4 +50,10 @@ func pick(vec anyvec.Vector) int {
 		}
 	}
 	return 0xff
+}
+
+func oneHot(chr int) []float64 {
+	res := make([]float64, 0x100)
+	res[chr] = InputScale
+	return res
 }

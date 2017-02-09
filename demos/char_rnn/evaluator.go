@@ -1,25 +1,33 @@
 package main
 
 import (
+	"github.com/unixpickle/anydiff"
+	"github.com/unixpickle/anydiff/anyseq"
+	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/anynet/anyrnn"
+	"github.com/unixpickle/anynet/anys2s"
+	"github.com/unixpickle/anynet/anysgd"
+	"github.com/unixpickle/anyvec"
 	"github.com/unixpickle/leea"
-	"github.com/unixpickle/leea/demos/lightrnn"
-	"github.com/unixpickle/sgd"
-	"github.com/unixpickle/weakai/rnn/seqtoseq"
 )
 
 type Evaluator struct{}
 
-func (_ Evaluator) Evaluate(e leea.Entity, s sgd.SampleSet) float64 {
-	var seqSamples sgd.SliceSampleSet
-	var totalLen int
-	for i := 0; i < s.Len(); i++ {
-		sample := s.GetSample(i).(Sample)
-		seqSamples = append(seqSamples, seqtoseq.Sample{
-			Inputs:  sample.InSeq(),
-			Outputs: sample.OutSeq(),
-		})
-		totalLen += len(sample.InSeq())
+func (_ Evaluator) Evaluate(e leea.Entity, b anysgd.Batch) float64 {
+	p := e.(*leea.NetEntity).Parameterizer
+	block := p.(anyrnn.Block)
+	tr := &anys2s.Trainer{
+		Func: func(s anyseq.Seq) anyseq.Seq {
+			s = anyseq.Map(s, func(v anydiff.Res, n int) anydiff.Res {
+				c := v.Output().Creator()
+				return anydiff.Scale(v, c.MakeNumeric(InputScale))
+			})
+			return anyrnn.Map(s, block)
+		},
+		Cost:    anynet.DotCost{},
+		Params:  p.Parameters(),
+		Average: true,
 	}
-	r := e.(*Entity).RNN
-	return -float64(lightrnn.Cost(r, seqSamples).(float32))
+	cost := anyvec.Sum(tr.TotalCost(b.(*anys2s.Batch)).Output())
+	return -float64(cost.(float32))
 }

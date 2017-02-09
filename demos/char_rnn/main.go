@@ -7,9 +7,13 @@ import (
 	"log"
 	"os"
 
+	"github.com/unixpickle/anynet"
+	"github.com/unixpickle/anynet/anyrnn"
+	"github.com/unixpickle/anynet/anys2s"
 	"github.com/unixpickle/anyvec/anyvec32"
+	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/leea"
-	"github.com/unixpickle/leea/demos/lightrnn"
+	"github.com/unixpickle/serializer"
 )
 
 const (
@@ -30,7 +34,7 @@ func main() {
 
 	flag.Float64Var(&mutInit, "mut", 1e-2, "mutation rate")
 	flag.Float64Var(&mutDecay, "mutdecay", 0.999, "mutation decay rate")
-	flag.Float64Var(&mutBaseline, "mutbias", 0, "mutation bias")
+	flag.Float64Var(&mutBaseline, "mutbias", 0.001, "mutation bias")
 
 	flag.Float64Var(&decayTarget, "decay", 0.05, "decay target")
 
@@ -67,6 +71,7 @@ func main() {
 		Baseline:  mutBaseline,
 	}
 	trainer := &leea.Trainer{
+		Fetcher:   &anys2s.Trainer{},
 		Evaluator: Evaluator{},
 		Samples: &leea.CycleSampleSource{
 			Samples:   samples,
@@ -76,8 +81,8 @@ func main() {
 			Size: tournamentSize,
 			Prob: tournamentProb,
 		},
-		Crosser: &Crosser{},
-		Mutator: &Mutator{
+		Crosser: &leea.NeuronalCrosser{},
+		Mutator: &leea.AddMutator{
 			Stddev: mutSchedule,
 		},
 		DecaySchedule: &leea.DecaySchedule{
@@ -98,25 +103,27 @@ func main() {
 		log.Println("Creating population...")
 	}
 	for i := 0; i < population; i++ {
-		var net *lightrnn.RNN
+		var net anyrnn.Stack
 		if err == nil {
-			net, err = lightrnn.DeserializeRNN(netData)
+			err = serializer.DeserializeAny(netData, &net)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Deserialize network:", err)
-				os.Exit(1)
+				essentials.Die("Deserialize network:", err)
 			}
 		} else {
 			c := anyvec32.CurrentCreator()
-			net = &lightrnn.RNN{
-				Hidden: []*lightrnn.Layer{
-					lightrnn.NewLayer(c, 0x100, StateSize, lightrnn.Tanh),
-					lightrnn.NewLayer(c, StateSize, StateSize, lightrnn.Tanh),
+			net = anyrnn.Stack{
+				anyrnn.NewVanillaZero(c, 0x100, StateSize, anynet.Tanh),
+				anyrnn.NewVanillaZero(c, StateSize, StateSize, anynet.Tanh),
+				&anyrnn.LayerBlock{
+					Layer: anynet.Net{
+						anynet.NewFCZero(c, StateSize, 0x100),
+						anynet.LogSoftmax,
+					},
 				},
-				Output: lightrnn.NewOutLayer(c, StateSize, 0x100, lightrnn.LogSoftmax),
 			}
 		}
 		trainer.Population = append(trainer.Population, &leea.FitEntity{
-			Entity: &Entity{RNN: net},
+			Entity: &leea.NetEntity{Parameterizer: net},
 		})
 	}
 
@@ -128,14 +135,9 @@ func main() {
 	})
 
 	log.Println("Saving fittest network...")
-	net := trainer.BestEntity().Entity.(*Entity).RNN
-	netData, err = net.Serialize()
-	if err != nil {
-		log.Println("Serialize failed:", err)
-	} else {
-		if err := ioutil.WriteFile(outFile, netData, 0755); err != nil {
-			log.Println("Save failed:", err)
-		}
+	net := trainer.BestEntity().Entity.(*leea.NetEntity).Parameterizer.(anyrnn.Block)
+	if err := serializer.SaveAny(outFile, net); err != nil {
+		log.Println("Save failed:", err)
 	}
 
 	log.Println("Producing samples...")
