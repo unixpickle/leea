@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/unixpickle/anydiff"
 	"github.com/unixpickle/anynet"
 	"github.com/unixpickle/anynet/anyrnn"
 	"github.com/unixpickle/anynet/anys2s"
@@ -72,7 +73,7 @@ func main() {
 	}
 	trainer := &leea.Trainer{
 		Fetcher:   &anys2s.Trainer{},
-		Evaluator: Evaluator{},
+		Evaluator: &leea.NegCost{Cost: anynet.DotCost{}},
 		Samples: &leea.CycleSampleSource{
 			Samples:   samples,
 			BatchSize: batchSize,
@@ -123,7 +124,7 @@ func main() {
 			}
 		}
 		trainer.Population = append(trainer.Population, &leea.FitEntity{
-			Entity: &leea.NetEntity{Parameterizer: net},
+			Entity: &leea.NetEntity{Parameterizer: addScaleLayer(net)},
 		})
 	}
 
@@ -135,7 +136,9 @@ func main() {
 	})
 
 	log.Println("Saving fittest network...")
-	net := trainer.BestEntity().Entity.(*leea.NetEntity).Parameterizer.(anyrnn.Block)
+	net := removeScaleLayer(
+		trainer.BestEntity().Entity.(*leea.NetEntity).Parameterizer.(anyrnn.Block),
+	)
 	if err := serializer.SaveAny(outFile, net); err != nil {
 		log.Println("Save failed:", err)
 	}
@@ -144,4 +147,23 @@ func main() {
 	for i := 0; i < EndSamples; i++ {
 		fmt.Println(GenerateSample(net))
 	}
+}
+
+func addScaleLayer(b anyrnn.Block) anyrnn.Stack {
+	c := b.(anynet.Parameterizer).Parameters()[0].Vector.Creator()
+	scaleVec := c.MakeVectorData(c.MakeNumericList([]float64{InputScale}))
+	zeroVec := c.MakeVectorData(c.MakeNumericList([]float64{0}))
+	return anyrnn.Stack{
+		&anyrnn.LayerBlock{Layer: &anynet.ParamHider{
+			Layer: &anynet.Affine{
+				Scalers: anydiff.NewVar(scaleVec),
+				Biases:  anydiff.NewVar(zeroVec),
+			},
+		}},
+		b,
+	}
+}
+
+func removeScaleLayer(b anyrnn.Block) anyrnn.Block {
+	return b.(anyrnn.Stack)[1]
 }
