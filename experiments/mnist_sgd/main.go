@@ -12,6 +12,11 @@ import (
 	"github.com/unixpickle/mnist"
 )
 
+const (
+	BatchSize   = 300
+	LogInterval = BatchSize * 10
+)
+
 func main() {
 	c := anyvec32.CurrentCreator()
 	net := anynet.Net{
@@ -32,18 +37,20 @@ func main() {
 	sgd := &anysgd.SGD{
 		Fetcher:    tr,
 		Gradienter: tr,
-		BatchSize:  300,
+		BatchSize:  BatchSize,
 		Rater:      anysgd.ConstRater(0.01),
 		Samples:    mnist.LoadTrainingDataSet().AnyNetSamples(c),
 		StatusFunc: func(b anysgd.Batch) {
-			cf := func(in []float64) int {
-				inVec := c.MakeVectorData(c.MakeNumericList(in))
-				out := net.Apply(anydiff.NewConst(inVec), 1)
-				return anyvec.MaxIndex(out.Output())
+			if iter%LogInterval == 0 {
+				cf := func(in []float64) int {
+					inVec := c.MakeVectorData(c.MakeNumericList(in))
+					out := net.Apply(anydiff.NewConst(inVec), 1)
+					return anyvec.MaxIndex(out.Output())
+				}
+				fmt.Printf("%f,%f\n", float64(iter)/60000,
+					float64(testSet.NumCorrect(cf))/10000)
 			}
-			fmt.Printf("%f,%f\n", float64(iter)/60000,
-				float64(testSet.NumCorrect(cf))/10000)
-			iter += 300
+			iter += BatchSize
 		},
 	}
 	sgd.Run(nil)
